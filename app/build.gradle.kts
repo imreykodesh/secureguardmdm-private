@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.secureguard.mdm"
-        minSdk = 22
+        minSdk = 23
         targetSdk = 34
         versionCode = 3
         versionName = "0.4.6"
@@ -67,6 +67,9 @@ android {
 dependencies {
     val roomVersion = "2.6.1"
     val ktorVersion = "2.3.11"
+
+    // Internal VPN engine spike. Source is vendored under third_party/firestack at this exact commit.
+    implementation("com.github.celzero:firestack:61894b7fdba9405be49c593927f51470c0979797@aar")
 
     // Kotlin/Android Core
     implementation("androidx.core:core-ktx:1.12.0")

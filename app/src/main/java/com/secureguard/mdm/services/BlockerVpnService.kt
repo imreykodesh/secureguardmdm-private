@@ -13,12 +13,14 @@ import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
 import com.secureguard.mdm.R
+import com.secureguard.mdm.firewall.engine.FirestackEngineAdapter
 import com.secureguard.mdm.utils.FileLogger
 import java.io.IOException
 
 class BlockerVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
+    private var firestackEngine: FirestackEngineAdapter? = null
     private val tag = "NetfreeVpnService"
     private lateinit var connectivityManager: ConnectivityManager
 
@@ -30,6 +32,7 @@ class BlockerVpnService : VpnService() {
 
         private const val VPN_NOTIFICATION_CHANNEL_ID = "BlockerVpnChannel"
         private const val VPN_NOTIFICATION_ID = 1002
+        private const val VPN_MTU = 1500
     }
 
     override fun onCreate() {
@@ -50,7 +53,7 @@ class BlockerVpnService : VpnService() {
 
         when (intent?.action) {
             ACTION_CONNECT -> {
-                FileLogger.log(tag, "Received ACTION_CONNECT. Starting VPN in simple block mode.")
+                FileLogger.log(tag, "Received ACTION_CONNECT. Starting internal firewall VPN.")
                 stopVpn()
                 startVpn(preferredNetwork = null)
             }
@@ -70,6 +73,13 @@ class BlockerVpnService : VpnService() {
                 stopVpn()
                 startVpn(preferredNetwork)
             }
+            null -> {
+                // Android can restart an Always-On VpnService without the original intent.
+                if (firestackEngine == null && vpnInterface == null) {
+                    FileLogger.log(tag, "Service restarted without an intent. Restoring firewall VPN.")
+                    startVpn(preferredNetwork = null)
+                }
+            }
         }
         return START_STICKY
     }
@@ -77,39 +87,55 @@ class BlockerVpnService : VpnService() {
     private fun startVpn(preferredNetwork: Network?) {
         try {
             val builder = Builder()
+                .setSession(getString(R.string.app_name))
+                .setMtu(VPN_MTU)
                 .addAddress("10.8.0.1", 24)
+                .addAddress("fd66:f83a:c650::1", 120)
                 .addRoute("0.0.0.0", 0)
+                .addRoute("::", 0)
+                // The first spike protects this app only. Selected packages are added by the
+                // policy coordinator after its rule/data layer is implemented.
                 .addAllowedApplication(packageName)
 
             if (preferredNetwork != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    FileLogger.log(tag, "Routing all traffic through network (API >= 29): $preferredNetwork")
+                    FileLogger.log(tag, "Using preferred underlying network: $preferredNetwork")
                     setUnderlyingNetworks(arrayOf(preferredNetwork))
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    FileLogger.log(tag, "Binding process to network (API < 29): $preferredNetwork")
+                } else {
+                    FileLogger.log(tag, "Binding service process to preferred network: $preferredNetwork")
                     if (!connectivityManager.bindProcessToNetwork(preferredNetwork)) {
                         FileLogger.log(tag, "Failed to bind process to network $preferredNetwork.")
                     }
                 }
             } else {
-                FileLogger.log(tag, "No preferred network. Blocking all traffic.")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     setUnderlyingNetworks(null)
                 }
             }
 
-            vpnInterface = builder.establish()
-            if (vpnInterface == null) {
-                FileLogger.log(tag, "VPN interface is NULL, policy will not be applied.")
+            val establishedInterface = builder.establish()
+            if (establishedInterface == null) {
+                FileLogger.log(tag, "VPN interface is null; firewall was not started.")
+                return
             }
 
+            // Firestack owns and closes this detached descriptor. Its outgoing sockets call
+            // VpnService.protect() through the adapter to prevent a routing loop.
+            val tunFd = establishedInterface.detachFd()
+            firestackEngine = FirestackEngineAdapter(this, applicationInfo.uid).also {
+                it.start(tunFd, VPN_MTU)
+            }
+            FileLogger.log(tag, "Internal Firestack forwarding engine established.")
         } catch (e: Exception) {
-            FileLogger.log(tag, "Error establishing VPN: ${e.message}")
+            FileLogger.log(tag, "Error establishing internal firewall VPN: ${e.message}")
+            stopVpn()
         }
     }
 
     private fun stopVpn() {
         try {
+            firestackEngine?.stop()
+            firestackEngine = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 connectivityManager.bindProcessToNetwork(null)
             }
@@ -126,7 +152,6 @@ class BlockerVpnService : VpnService() {
             val channel = NotificationChannel(
                 VPN_NOTIFICATION_CHANNEL_ID,
                 getString(R.string.vpn_notification_channel_name),
-                // --- התיקון כאן ---
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = getString(R.string.vpn_notification_channel_description)
@@ -137,9 +162,15 @@ class BlockerVpnService : VpnService() {
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.vpn_notification_content))
             .setSmallIcon(R.drawable.ic_netguard_shield)
-            .setPriority(NotificationCompat.PRIORITY_LOW) // --- התיקון כאן ---
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
+    }
+
+    override fun onRevoke() {
+        FileLogger.log(tag, "VPN permission was revoked.")
+        stopVpn()
+        super.onRevoke()
     }
 
     override fun onDestroy() {
@@ -148,7 +179,5 @@ class BlockerVpnService : VpnService() {
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent): IBinder? {
-        return null
-    }
+    override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 }
