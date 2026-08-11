@@ -448,4 +448,7 @@
     <string name="kiosk_desc_settings">הגדרות</string>
     <string name="main_service_initializing">אייבלוק הופעלה עם הדלקת המכשיר.</string>
 
+    <string name="settings_item_firewall">סינון רשת לפי אפליקציה</string>
+    <string name="feature_vpn_title_new">חומת אש פנימית לפי אפליקציה</string>
+    <string name="feature_vpn_description_new">מנתב רק אפליקציות שנבחרו דרך ה-VPN הפנימי ואוכף עליהן כללי חסימה ואישור.</string>
 </resources>

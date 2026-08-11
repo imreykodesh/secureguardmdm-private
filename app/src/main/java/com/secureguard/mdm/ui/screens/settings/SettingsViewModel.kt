@@ -81,7 +81,7 @@ class SettingsViewModel @Inject constructor(
     private var initialProtectionTogglesState: Map<String, Boolean> = emptyMap()
     private var initialSettingsTogglesState: Map<String, Boolean> = emptyMap()
 
-    private var pendingVpnEnableRequest: Boolean = false
+    private var pendingVpnFeatureId: String? = null
 
     init {
         loadInitialState()
@@ -137,22 +137,16 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun loadProtectionFeatures(): List<ProtectionCategoryToggle> {
-        val isNetGuardInstalled = isNetGuardInstalled()
         val currentDeviceApi = Build.VERSION.SDK_INT
         return CategoryRegistry.allCategories.map { category ->
             val featureToggles = category.features.map { feature ->
-                var isSupported = currentDeviceApi >= feature.requiredSdkVersion
-                var conflictReason: Int? = null
-                if (feature.id == BlockInternetVpnFeature.id && isNetGuardInstalled) {
-                    isSupported = false
-                    conflictReason = R.string.conflict_reason_netguard_installed
-                }
+                val isSupported = currentDeviceApi >= feature.requiredSdkVersion
                 FeatureToggle(
                     feature = feature,
                     isEnabled = settingsRepository.getFeatureState(feature.id),
                     isSupported = isSupported,
                     requiredApi = feature.requiredSdkVersion,
-                    conflictReasonResId = conflictReason
+                    conflictReasonResId = null
                 )
             }
             ProtectionCategoryToggle(titleResId = category.titleResId, toggles = featureToggles)
@@ -239,17 +233,17 @@ class SettingsViewModel @Inject constructor(
 
             // Save main protection features, ONLY IF CHANGED
             val wasNetGuardProtectedBeforeSave = initialProtectionTogglesState[InstallAndProtectNetGuardFeature.id] ?: false
-            currentState.protectionCategoryToggles.flatMap { it.toggles }.forEach { toggle ->
-                val initialValue = initialProtectionTogglesState[toggle.feature.id]
-                if (initialValue != toggle.isEnabled) {
-                    hasChanges = true
-                    toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
-                    settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
+            val changedProtectionToggles = currentState.protectionCategoryToggles
+                .flatMap { it.toggles }
+                .filter { initialProtectionTogglesState[it.feature.id] != it.isEnabled }
+                .sortedBy { it.isEnabled } // Disable competing owners before enabling a new VPN mode.
+            changedProtectionToggles.forEach { toggle ->
+                hasChanges = true
+                toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
+                settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
 
-                    // Special message for NetGuard
-                    if (toggle.feature.id == InstallAndProtectNetGuardFeature.id && wasNetGuardProtectedBeforeSave && !toggle.isEnabled && isNetGuardInstalled()) {
-                        snackbarMessage += "\n" + context.getString(R.string.toast_netguard_can_be_uninstalled)
-                    }
+                if (toggle.feature.id == InstallAndProtectNetGuardFeature.id && wasNetGuardProtectedBeforeSave && !toggle.isEnabled && isNetGuardInstalled()) {
+                    snackbarMessage += "\n" + context.getString(R.string.toast_netguard_can_be_uninstalled)
                 }
             }
 
@@ -277,7 +271,7 @@ class SettingsViewModel @Inject constructor(
     private fun handleProtectionToggle(featureId: String, isEnabled: Boolean) {
         if ((featureId == BlockInternetVpnFeature.id || featureId == NetfreeOnlyModeFeature.id) && isEnabled) {
             if (VpnService.prepare(context) != null) {
-                pendingVpnEnableRequest = true
+                pendingVpnFeatureId = featureId
                 viewModelScope.launch { _vpnPermissionRequestEvent.emit(Unit) }
                 return
             }
@@ -285,7 +279,14 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { currentState ->
             val updatedCategories = currentState.protectionCategoryToggles.map { category ->
                 val updatedToggles = category.toggles.map { toggle ->
-                    if (toggle.feature.id == featureId) toggle.copy(isEnabled = isEnabled) else toggle
+                    when {
+                        toggle.feature.id == featureId -> toggle.copy(isEnabled = isEnabled)
+                        isEnabled && featureId == BlockInternetVpnFeature.id && toggle.feature.id == NetfreeOnlyModeFeature.id ->
+                            toggle.copy(isEnabled = false)
+                        isEnabled && featureId == NetfreeOnlyModeFeature.id && toggle.feature.id == BlockInternetVpnFeature.id ->
+                            toggle.copy(isEnabled = false)
+                        else -> toggle
+                    }
                 }
                 category.copy(toggles = updatedToggles)
             }
@@ -294,20 +295,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun handleVpnPermissionResult(granted: Boolean) {
-        if (granted && pendingVpnEnableRequest) {
-            // Find which feature was pending
-            val pendingFeature = _uiState.value.protectionCategoryToggles
-                .flatMap { it.toggles }
-                .find { it.feature.id == BlockInternetVpnFeature.id || it.feature.id == NetfreeOnlyModeFeature.id }
-                ?.feature?.id
-
-            if (pendingFeature != null) {
-                handleProtectionToggle(pendingFeature, true)
-            }
+        val pendingFeature = pendingVpnFeatureId
+        pendingVpnFeatureId = null
+        if (granted && pendingFeature != null) {
+            handleProtectionToggle(pendingFeature, true)
         } else if (!granted) {
             _uiState.update { it.copy(snackbarMessage = context.getString(R.string.settings_error_vpn_permission_required)) }
         }
-        pendingVpnEnableRequest = false
     }
 
     private fun handleRemoveProtectionPassword(password: String) {

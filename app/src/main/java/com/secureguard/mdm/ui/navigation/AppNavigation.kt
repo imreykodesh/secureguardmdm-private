@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import com.secureguard.mdm.appblocker.ui.AppSelectionScreen
 import com.secureguard.mdm.appblocker.ui.BlockedAppsScreen
 import com.secureguard.mdm.data.repository.SettingsRepository
+import com.secureguard.mdm.firewall.ui.FirewallScreen
 import com.secureguard.mdm.kiosk.ui.KioskAppSelectionScreen
 import com.secureguard.mdm.kiosk.ui.KioskManagementScreen
 import com.secureguard.mdm.ui.screens.changepassword.ChangePasswordScreen
@@ -39,6 +40,7 @@ object Routes {
     const val FRP_SETTINGS = "frp_settings"
     const val KIOSK_MANAGEMENT = "kiosk_management"
     const val KIOSK_APP_SELECTION = "kiosk_app_selection"
+    const val FIREWALL_OVERVIEW = "firewall_overview"
 }
 
 @Composable
@@ -99,6 +101,9 @@ fun AppNavigation(
             }
             composable(Routes.BLOCKED_APPS_DISPLAY) {
                 BlockedAppsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Routes.FIREWALL_OVERVIEW) {
+                FirewallScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Routes.FRP_SETTINGS) {
                 FrpSettingsScreen(onNavigateBack = { navController.popBackStack() })
