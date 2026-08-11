@@ -2,6 +2,7 @@ package com.secureguard.mdm.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.secureguard.mdm.firewall.data.ConnectionHistoryEntity
 import com.secureguard.mdm.firewall.data.FirewallAppPolicyEntity
 import com.secureguard.mdm.firewall.data.FirewallDao
 import com.secureguard.mdm.firewall.data.FirewallRuleEntity
@@ -14,8 +15,13 @@ import com.secureguard.mdm.firewall.data.FirewallRuleEntity
  * @property version גרסת מסד הנתונים. יש להעלות מספר זה בכל פעם שמשנים את מבנה הטבלאות.
  */
 @Database(
-    entities = [BlockedAppCache::class, FirewallAppPolicyEntity::class, FirewallRuleEntity::class],
-    version = 2,
+    entities = [
+        BlockedAppCache::class,
+        FirewallAppPolicyEntity::class,
+        FirewallRuleEntity::class,
+        ConnectionHistoryEntity::class,
+    ],
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {

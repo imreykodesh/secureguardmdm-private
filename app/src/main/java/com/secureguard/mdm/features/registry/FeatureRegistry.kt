@@ -49,8 +49,6 @@ object FeatureRegistry {
         BlockIncomingCallsFeature,
         BlockPasswordChangeFeature,
         BlockVpnSettingsFeature,
-        InstallAndProtectNetGuardFeature,
-        ForceNetGuardVpnFeature,
         NetfreeOnlyModeFeature // --- הוספה ---
     )
 }

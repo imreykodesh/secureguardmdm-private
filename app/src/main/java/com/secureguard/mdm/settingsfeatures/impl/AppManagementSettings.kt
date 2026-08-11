@@ -24,7 +24,7 @@ object NavigateToBlockedAppsSetting : NavigationalSetting {
 object NavigateToFirewallSetting : NavigationalSetting {
     override val id: String = "navigate_internal_firewall"
     override val titleRes: Int = R.string.settings_item_firewall
-    override val iconRes: Int = R.drawable.ic_netguard_shield
+    override val iconRes: Int = R.drawable.ic_firewall_shield
     override val category: SettingCategory = SettingCategory.APP_MANAGEMENT
     override val route: String = Routes.FIREWALL_OVERVIEW
 }

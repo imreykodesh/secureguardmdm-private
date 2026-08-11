@@ -49,10 +49,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
+import com.secureguard.mdm.firewall.model.ConnectionDecision
+import com.secureguard.mdm.firewall.model.ConnectionHistory
 import com.secureguard.mdm.firewall.model.FirewallPolicyMode
 import com.secureguard.mdm.firewall.model.FirewallProtocol
 import com.secureguard.mdm.firewall.model.FirewallRuleAction
 import com.secureguard.mdm.firewall.model.FirewallRuleType
+import java.text.DateFormat
+import java.util.Date
+
+private enum class FirewallSection { CONFIGURATION, HISTORY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +68,8 @@ fun FirewallScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showRuleDialog by remember { mutableStateOf(false) }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var section by remember { mutableStateOf(FirewallSection.CONFIGURATION) }
 
     Scaffold(
         topBar = {
@@ -73,16 +81,25 @@ fun FirewallScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { showRuleDialog = true },
-                        enabled = state.persistedPackages.isNotEmpty(),
-                    ) { Icon(Icons.Default.Add, contentDescription = "הוסף כלל") }
+                    if (section == FirewallSection.CONFIGURATION) {
+                        IconButton(
+                            onClick = { showRuleDialog = true },
+                            enabled = state.persistedPackages.isNotEmpty(),
+                        ) { Icon(Icons.Default.Add, contentDescription = "הוסף כלל") }
+                    } else {
+                        IconButton(
+                            onClick = { showClearHistoryDialog = true },
+                            enabled = state.history.isNotEmpty(),
+                        ) { Icon(Icons.Default.Delete, contentDescription = "נקה היסטוריה") }
+                    }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::saveSelection) {
-                Icon(Icons.Default.Save, contentDescription = "שמור והפעל")
+            if (section == FirewallSection.CONFIGURATION) {
+                FloatingActionButton(onClick = viewModel::saveSelection) {
+                    Icon(Icons.Default.Save, contentDescription = "שמור והפעל")
+                }
             }
         },
     ) { padding ->
@@ -94,65 +111,33 @@ fun FirewallScreen(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = viewModel::clearMessage).padding(12.dp),
                 )
             }
-            OutlinedTextField(
-                value = state.search,
-                onValueChange = viewModel::setSearch,
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                label = { Text("חיפוש אפליקציה או package") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
-            )
-            if (state.loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            } else {
-                val query = state.search.trim().lowercase()
-                val apps = state.apps.filter {
-                    query.isEmpty() || it.name.lowercase().contains(query) || it.packageName.lowercase().contains(query)
-                }
-                LazyColumn(Modifier.fillMaxSize()) {
-                    item {
-                        Text(
-                            "בחר אפליקציות שייכנסו ל-VPN. אפליקציות שלא נבחרו אינן מושפעות.",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                    items(apps, key = { it.packageName }) { app ->
-                        val selected = app.packageName in state.selectedPackages
-                        FirewallAppRow(
-                            app = app,
-                            selected = selected,
-                            mode = state.modes[app.packageName] ?: FirewallPolicyMode.MONITOR_ONLY,
-                            blockQuic = app.packageName in state.blockQuic,
-                            blockDot = app.packageName in state.blockDot,
-                            onSelected = { viewModel.setSelected(app.packageName, it) },
-                            onMode = { viewModel.setMode(app.packageName, it) },
-                            onBlockQuic = { viewModel.setBlockQuic(app.packageName, it) },
-                            onBlockDot = { viewModel.setBlockDot(app.packageName, it) },
-                        )
-                        HorizontalDivider()
-                    }
-                    if (state.rules.isNotEmpty()) {
-                        item {
-                            Text("כללים פעילים", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
-                        }
-                        items(state.rules, key = { it.id }) { rule ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("${rule.action}: ${rule.value}")
-                                    Text("${rule.packageName} · ${rule.ruleType} · ${rule.protocol}", style = MaterialTheme.typography.bodySmall)
-                                }
-                                IconButton(onClick = { viewModel.deleteRule(rule.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "מחק כלל")
-                                }
-                            }
-                        }
-                    }
-                    item { Spacer(Modifier.height(88.dp)) }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { section = FirewallSection.CONFIGURATION },
+                    enabled = section != FirewallSection.CONFIGURATION,
+                    modifier = Modifier.weight(1f),
+                ) { Text("אפליקציות וכללים") }
+                Button(
+                    onClick = { section = FirewallSection.HISTORY },
+                    enabled = section != FirewallSection.HISTORY,
+                    modifier = Modifier.weight(1f),
+                ) { Text("יעדים אחרונים (${state.history.size})") }
+            }
+
+            when (section) {
+                FirewallSection.CONFIGURATION -> FirewallConfiguration(
+                    state = state,
+                    viewModel = viewModel,
+                )
+                FirewallSection.HISTORY -> RecentDestinations(
+                    state = state,
+                    onSearch = viewModel::setHistorySearch,
+                    onFilter = viewModel::setHistoryDecisionFilter,
+                    onQuickBlock = viewModel::quickBlock,
+                )
             }
         }
     }
@@ -166,6 +151,228 @@ fun FirewallScreen(
                 showRuleDialog = false
             },
         )
+    }
+
+    if (showClearHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearHistoryDialog = false },
+            title = { Text("מחיקת היסטוריית יעדים") },
+            text = { Text("למחוק לצמיתות את כל היעדים שנקלטו במכשיר?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.clearHistory()
+                    showClearHistoryDialog = false
+                }) { Text("מחק הכול") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearHistoryDialog = false }) { Text("ביטול") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun FirewallConfiguration(
+    state: FirewallUiState,
+    viewModel: FirewallViewModel,
+) {
+    OutlinedTextField(
+        value = state.search,
+        onValueChange = viewModel::setSearch,
+        modifier = Modifier.fillMaxWidth().padding(12.dp),
+        label = { Text("חיפוש אפליקציה או package") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        singleLine = true,
+    )
+    if (state.loading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
+    val query = state.search.trim().lowercase()
+    val apps = state.apps.filter {
+        query.isEmpty() || it.name.lowercase().contains(query) || it.packageName.lowercase().contains(query)
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item {
+            Text(
+                "בחר אפליקציות שייכנסו ל-VPN. אפליקציות שלא נבחרו אינן מושפעות.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        items(apps, key = { "app:${it.packageName}" }) { app ->
+            val selected = app.packageName in state.selectedPackages
+            FirewallAppRow(
+                app = app,
+                selected = selected,
+                mode = state.modes[app.packageName] ?: FirewallPolicyMode.MONITOR_ONLY,
+                blockQuic = app.packageName in state.blockQuic,
+                blockDot = app.packageName in state.blockDot,
+                onSelected = { viewModel.setSelected(app.packageName, it) },
+                onMode = { viewModel.setMode(app.packageName, it) },
+                onBlockQuic = { viewModel.setBlockQuic(app.packageName, it) },
+                onBlockDot = { viewModel.setBlockDot(app.packageName, it) },
+            )
+            HorizontalDivider()
+        }
+        if (state.rules.isNotEmpty()) {
+            item {
+                Text("כללים פעילים", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+            }
+            items(state.rules, key = { "rule:${it.id}" }) { rule ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("${rule.action}: ${rule.value}")
+                        Text(
+                            "${rule.packageName} · ${rule.ruleType} · ${rule.protocol}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    IconButton(onClick = { viewModel.deleteRule(rule.id) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "מחק כלל")
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(88.dp)) }
+    }
+}
+
+@Composable
+private fun RecentDestinations(
+    state: FirewallUiState,
+    onSearch: (String) -> Unit,
+    onFilter: (HistoryDecisionFilter) -> Unit,
+    onQuickBlock: (ConnectionHistory) -> Unit,
+) {
+    OutlinedTextField(
+        value = state.historySearch,
+        onValueChange = onSearch,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        label = { Text("חיפוש אפליקציה, domain או IP") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        singleLine = true,
+    )
+    HistoryFilterSelector(state.historyDecisionFilter, onFilter)
+
+    val query = state.historySearch.trim().lowercase()
+    val filtered = state.history.filter { history ->
+        val matchesDecision = when (state.historyDecisionFilter) {
+            HistoryDecisionFilter.ALL -> true
+            HistoryDecisionFilter.ALLOWED -> history.lastDecision == ConnectionDecision.ALLOWED
+            HistoryDecisionFilter.BLOCKED -> history.lastDecision == ConnectionDecision.BLOCKED
+            HistoryDecisionFilter.MONITORED -> history.lastDecision == ConnectionDecision.MONITORED
+        }
+        val matchesQuery = query.isEmpty() ||
+            history.packageName.lowercase().contains(query) ||
+            history.domain?.lowercase()?.contains(query) == true ||
+            history.destinationIp.lowercase().contains(query) ||
+            history.normalizedDestination.lowercase().contains(query)
+        matchesDecision && matchesQuery
+    }
+
+    if (filtered.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(if (state.history.isEmpty()) "טרם נקלטו יעדי רשת" else "לא נמצאו יעדים תואמים")
+        }
+        return
+    }
+
+    val appNames = remember(state.apps) { state.apps.associate { it.packageName to it.name } }
+    val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
+    LazyColumn(Modifier.fillMaxSize()) {
+        item {
+            Text(
+                "נשמרים metadata בלבד: יעד, פורט, פרוטוקול והחלטה. תוכן התעבורה אינו נשמר.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        items(filtered, key = { it.id }) { history ->
+            RecentDestinationRow(
+                history = history,
+                appName = appNames[history.packageName],
+                lastSeen = dateFormat.format(Date(history.lastSeenAt)),
+                onQuickBlock = { onQuickBlock(history) },
+            )
+            HorizontalDivider()
+        }
+        item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun HistoryFilterSelector(
+    selected: HistoryDecisionFilter,
+    onSelect: (HistoryDecisionFilter) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val labels = mapOf(
+        HistoryDecisionFilter.ALL to "הכול",
+        HistoryDecisionFilter.ALLOWED to "מותר",
+        HistoryDecisionFilter.BLOCKED to "חסום",
+        HistoryDecisionFilter.MONITORED to "נוטר",
+    )
+    Box(Modifier.padding(horizontal = 12.dp)) {
+        TextButton(onClick = { expanded = true }) { Text("החלטה: ${labels.getValue(selected)}") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            HistoryDecisionFilter.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(labels.getValue(option)) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentDestinationRow(
+    history: ConnectionHistory,
+    appName: String?,
+    lastSeen: String,
+    onQuickBlock: () -> Unit,
+) {
+    val destination = history.domain ?: history.destinationIp
+    val decisionLabel = when (history.lastDecision) {
+        ConnectionDecision.ALLOWED -> "מותר"
+        ConnectionDecision.BLOCKED -> "חסום"
+        ConnectionDecision.MONITORED -> "נוטר"
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(destination, style = MaterialTheme.typography.titleSmall)
+            if (history.domain != null && history.destinationIp.isNotBlank()) {
+                Text(history.destinationIp, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                "${appName ?: history.packageName} · ${history.packageName}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "פורט ${history.destinationPort} · ${history.protocol} · $decisionLabel · ${history.metadataSource}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "${history.networkType} · ${history.connectionCount} חיבורים · נראה לאחרונה $lastSeen",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Button(
+            onClick = onQuickBlock,
+            enabled = history.packageName.isNotBlank() && history.packageName != "UNKNOWN" &&
+                history.lastDecision != ConnectionDecision.BLOCKED,
+        ) { Text("חסום") }
     }
 }
 
@@ -187,10 +394,17 @@ private fun FirewallAppRow(
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(app.name)
                 Text(app.packageName, style = MaterialTheme.typography.bodySmall)
+                app.ineligibleReason?.let { reason ->
+                    Text(reason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
             }
-            Checkbox(checked = selected, onCheckedChange = onSelected)
+            Checkbox(
+                checked = selected,
+                onCheckedChange = onSelected,
+                enabled = app.isFirewallEligible || selected,
+            )
         }
-        if (selected) {
+        if (selected && app.isFirewallEligible) {
             ModeSelector(mode, onMode)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("חסום QUIC (UDP/443)", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
@@ -248,8 +462,12 @@ private fun AddRuleDialog(
                 EnumSelector("סוג", type.name, listOf("DOMAIN_EXACT", "DOMAIN_SUFFIX", "IP_EXACT", "CIDR", "PORT", "IP_PORT", "DOMAIN_PORT")) {
                     type = FirewallRuleType.valueOf(it)
                 }
-                EnumSelector("פעולה", action.name, FirewallRuleAction.entries.map { it.name }) { action = FirewallRuleAction.valueOf(it) }
-                EnumSelector("פרוטוקול", protocol.name, FirewallProtocol.entries.map { it.name }) { protocol = FirewallProtocol.valueOf(it) }
+                EnumSelector("פעולה", action.name, FirewallRuleAction.entries.map { it.name }) {
+                    action = FirewallRuleAction.valueOf(it)
+                }
+                EnumSelector("פרוטוקול", protocol.name, FirewallProtocol.entries.map { it.name }) {
+                    protocol = FirewallProtocol.valueOf(it)
+                }
                 OutlinedTextField(value, { value = it }, label = { Text("domain / IP / CIDR") }, singleLine = true)
                 if (type in setOf(FirewallRuleType.PORT, FirewallRuleType.IP_PORT, FirewallRuleType.DOMAIN_PORT)) {
                     OutlinedTextField(port, { port = it.filter(Char::isDigit) }, label = { Text("פורט") }, singleLine = true)

@@ -9,15 +9,18 @@ import android.net.VpnService
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.impl.BlockInternetVpnFeature
+import com.secureguard.mdm.firewall.data.ConnectionHistoryRepository
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepository
+import com.secureguard.mdm.firewall.model.ConnectionDecision
+import com.secureguard.mdm.firewall.model.ConnectionHistory
 import com.secureguard.mdm.firewall.model.FirewallPolicyMode
 import com.secureguard.mdm.firewall.model.FirewallProtocol
 import com.secureguard.mdm.firewall.model.FirewallRule
 import com.secureguard.mdm.firewall.model.FirewallRuleAction
 import com.secureguard.mdm.firewall.model.FirewallRuleType
 import com.secureguard.mdm.services.BlockerVpnService
-import com.secureguard.mdm.data.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +37,16 @@ data class FirewallAppItem(
     val packageName: String,
     val icon: Drawable,
     val isSystemApp: Boolean,
+    val isFirewallEligible: Boolean,
+    val ineligibleReason: String? = null,
 )
+
+enum class HistoryDecisionFilter {
+    ALL,
+    ALLOWED,
+    BLOCKED,
+    MONITORED,
+}
 
 data class FirewallUiState(
     val apps: List<FirewallAppItem> = emptyList(),
@@ -45,7 +57,10 @@ data class FirewallUiState(
     val blockQuic: Set<String> = emptySet(),
     val blockDot: Set<String> = emptySet(),
     val rules: List<FirewallRule> = emptyList(),
+    val history: List<ConnectionHistory> = emptyList(),
     val search: String = "",
+    val historySearch: String = "",
+    val historyDecisionFilter: HistoryDecisionFilter = HistoryDecisionFilter.ALL,
     val loading: Boolean = true,
     val message: String? = null,
 )
@@ -54,6 +69,7 @@ data class FirewallUiState(
 class FirewallViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: FirewallPolicyRepository,
+    private val historyRepository: ConnectionHistoryRepository,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FirewallUiState())
@@ -83,18 +99,37 @@ class FirewallViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            historyRepository.observeRecent().collectLatest { history ->
+                _uiState.update { it.copy(history = history) }
+            }
+        }
     }
 
     fun setSearch(value: String) = _uiState.update { it.copy(search = value) }
 
-    fun setSelected(packageName: String, selected: Boolean) = _uiState.update { state ->
-        val selectedPackages = state.selectedPackages.toMutableSet().apply {
-            if (selected) add(packageName) else remove(packageName)
+    fun setHistorySearch(value: String) = _uiState.update { it.copy(historySearch = value) }
+
+    fun setHistoryDecisionFilter(value: HistoryDecisionFilter) =
+        _uiState.update { it.copy(historyDecisionFilter = value) }
+
+    fun setSelected(packageName: String, selected: Boolean) {
+        val app = _uiState.value.apps.firstOrNull { it.packageName == packageName }
+        if (selected && app?.isFirewallEligible != true) {
+            _uiState.update {
+                it.copy(message = app?.ineligibleReason ?: "לא ניתן לשייך את האפליקציה באופן בטוח לחומת האש")
+            }
+            return
         }
-        val modes = state.modes.toMutableMap().apply {
-            if (selected) putIfAbsent(packageName, FirewallPolicyMode.MONITOR_ONLY) else remove(packageName)
+        _uiState.update { state ->
+            val selectedPackages = state.selectedPackages.toMutableSet().apply {
+                if (selected) add(packageName) else remove(packageName)
+            }
+            val modes = state.modes.toMutableMap().apply {
+                if (selected) putIfAbsent(packageName, FirewallPolicyMode.MONITOR_ONLY) else remove(packageName)
+            }
+            state.copy(selectedPackages = selectedPackages, modes = modes, hasDraftChanges = true)
         }
-        state.copy(selectedPackages = selectedPackages, modes = modes, hasDraftChanges = true)
     }
 
     fun setMode(packageName: String, mode: FirewallPolicyMode) = _uiState.update {
@@ -111,9 +146,14 @@ class FirewallViewModel @Inject constructor(
 
     fun saveSelection() {
         val state = _uiState.value
+        if (state.loading) return
         viewModelScope.launch(Dispatchers.IO) {
-            repository.replaceSelectedPackages(state.selectedPackages)
-            state.selectedPackages.forEach { packageName ->
+            val eligiblePackages = state.selectedPackages.filterTo(mutableSetOf()) { packageName ->
+                state.apps.firstOrNull { it.packageName == packageName }?.isFirewallEligible == true
+            }
+            val skippedCount = state.selectedPackages.size - eligiblePackages.size
+            repository.replaceSelectedPackages(eligiblePackages)
+            eligiblePackages.forEach { packageName ->
                 repository.updatePolicyMode(packageName, state.modes[packageName] ?: FirewallPolicyMode.MONITOR_ONLY)
                 repository.updateTransportOptions(
                     packageName,
@@ -123,21 +163,29 @@ class FirewallViewModel @Inject constructor(
             }
             _uiState.update {
                 it.copy(
-                    persistedPackages = state.selectedPackages,
+                    selectedPackages = eligiblePackages,
+                    persistedPackages = eligiblePackages,
+                    modes = it.modes.filterKeys(eligiblePackages::contains),
                     hasDraftChanges = false,
                 )
             }
+            val skippedSuffix = if (skippedCount > 0) " $skippedCount אפליקציות עם UID משותף הוסרו מהבחירה." else ""
             val firewallEnabled = settingsRepository.getFeatureState(BlockInternetVpnFeature.id)
             if (!firewallEnabled) {
-                _uiState.update { it.copy(message = "המדיניות נשמרה. הפעל את חומת האש מהמתג הראשי") }
+                _uiState.update { it.copy(message = "המדיניות נשמרה. הפעל את חומת האש מהמתג הראשי.$skippedSuffix") }
             } else if (VpnService.prepare(context) == null) {
                 val intent = Intent(context, BlockerVpnService::class.java).apply {
                     action = BlockerVpnService.ACTION_REBUILD_INTERFACE
                 }
                 ContextCompat.startForegroundService(context, intent)
-                _uiState.update { it.copy(message = "המדיניות נשמרה וה-VPN נבנה מחדש") }
+                val message = if (eligiblePackages.isEmpty()) {
+                    "לא נבחרה אפליקציה כשירה; שירות חומת האש יכובה.$skippedSuffix"
+                } else {
+                    "המדיניות נשמרה וה-VPN נבנה מחדש.$skippedSuffix"
+                }
+                _uiState.update { it.copy(message = message) }
             } else {
-                _uiState.update { it.copy(message = "המדיניות נשמרה. יש לאשר הרשאת VPN") }
+                _uiState.update { it.copy(message = "המדיניות נשמרה. יש לאשר הרשאת VPN.$skippedSuffix") }
             }
         }
     }
@@ -186,6 +234,64 @@ class FirewallViewModel @Inject constructor(
         }
     }
 
+    fun quickBlock(history: ConnectionHistory) {
+        val packageName = history.packageName
+        if (packageName.isBlank() || packageName == "UNKNOWN") {
+            _uiState.update { it.copy(message = "לא ניתן לחסום יעד ללא שיוך ודאי לאפליקציה") }
+            return
+        }
+        if (packageName !in _uiState.value.persistedPackages) {
+            _uiState.update { it.copy(message = "האפליקציה אינה חלק ממדיניות חומת האש") }
+            return
+        }
+
+        val domain = history.domain?.trim()?.takeIf { it.isNotEmpty() }
+        val ruleType = if (domain != null) FirewallRuleType.DOMAIN_EXACT else FirewallRuleType.IP_EXACT
+        val value = domain ?: history.destinationIp
+        if (value.isBlank()) {
+            _uiState.update { it.copy(message = "לא נמצא domain או IP חוקי לחסימה") }
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            runCatching {
+                repository.upsertRule(
+                    FirewallRule(
+                        packageName = packageName,
+                        ruleType = ruleType,
+                        action = FirewallRuleAction.BLOCK,
+                        value = value,
+                        protocol = FirewallProtocol.ANY,
+                        priority = 200,
+                        source = "RECENT_DESTINATION",
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+                if (_uiState.value.modes[packageName] == FirewallPolicyMode.MONITOR_ONLY) {
+                    repository.updatePolicyMode(packageName, FirewallPolicyMode.BLOCKLIST)
+                    _uiState.update { state ->
+                        state.copy(modes = state.modes + (packageName to FirewallPolicyMode.BLOCKLIST))
+                    }
+                }
+                requestRuleReload()
+            }.onSuccess {
+                _uiState.update { it.copy(message = "היעד $value נחסם עבור $packageName") }
+            }.onFailure { error ->
+                _uiState.update { it.copy(message = "החסימה נכשלה: ${error.message}") }
+            }
+        }
+    }
+
+    fun clearHistory() = viewModelScope.launch(Dispatchers.IO) {
+        runCatching { historyRepository.clear() }
+            .onSuccess { _uiState.update { it.copy(message = "היסטוריית היעדים נמחקה") } }
+            .onFailure { error ->
+                _uiState.update { it.copy(message = "מחיקת ההיסטוריה נכשלה: ${error.message}") }
+            }
+    }
+
     fun deleteRule(ruleId: Long) = viewModelScope.launch(Dispatchers.IO) {
         repository.deleteRule(ruleId)
         requestRuleReload()
@@ -211,11 +317,16 @@ class FirewallViewModel @Inject constructor(
                 .asSequence()
                 .filterNot { it.packageName == context.packageName }
                 .map { app ->
+                    val packagesForUid = pm.getPackagesForUid(app.uid).orEmpty().toSet()
+                    val isEligible = packagesForUid == setOf(app.packageName)
                     FirewallAppItem(
                         name = app.loadLabel(pm).toString(),
                         packageName = app.packageName,
                         icon = app.loadIcon(pm),
                         isSystemApp = app.flags and ApplicationInfo.FLAG_SYSTEM != 0,
+                        isFirewallEligible = isEligible,
+                        ineligibleReason = if (isEligible) null else
+                            "לא ניתן להגן על אפליקציה זו בנפרד משום שה-UID שלה משותף עם אפליקציות נוספות",
                     )
                 }
                 .sortedBy { it.name.lowercase() }

@@ -199,15 +199,8 @@
     <string name="feature_block_system_error_dialogs_description">מונעת הצגת חלונות קופצים של שגיאות מערכת (כמו "אפליקציה קרסה").</string>
     <string name="feature_block_password_change_title">חסימת שינוי סיסמה</string>
     <string name="feature_block_password_change_description">מונעת שינוי סיסמת המכשיר</string>
-    <string name="toast_installing_netguard">מתקין את NetGuard...</string>
-    <string name="toast_netguard_can_be_uninstalled">NetGuard אינו מוגן יותר. כעת ניתן למחוק את האפליקציה.</string>
     <string name="feature_block_vpn_settings_title">חסימת הגדרות VPN</string>
     <string name="feature_block_vpn_settings_description">מונע מהמשתמש לגשת למסך הגדרות ה-VPN של המכשיר.</string>
-    <string name="feature_install_netguard_title">התקן והגן על NetGuard</string>
-    <string name="feature_install_netguard_description">מתקין את NetGuard ומונע את הסרתו מהמכשיר.</string>
-    <string name="feature_force_netguard_vpn_title">כפה את NetGuard כ-VPN תמידי</string>
-    <string name="feature_force_netguard_vpn_description">מגדיר את NetGuard כ-VPN במצב Always-On עם נעילה.</string>
-    <string name="conflict_reason_netguard_installed">מושבת מכיוון ש-NetGuard מותקן</string>
     <string name="feature_frp_protection_title">הגנת איפוס (FRP)</string>
     <string name="feature_frp_protection_description">מונע איפוס המכשיר על ידי נעילתו לחשבונות Google מוגדרים מראש.</string>
     <string name="category_device_management">ניהול מכשיר כללי</string>
@@ -383,10 +376,6 @@
     <string name="main_activity_permission_message">כדי שכפתורי ה-Wi-Fi, הבלוטות\' וסיבוב המסך יעבדו ממצב קיוסק, יש להעניק לאפליקציה הרשאה לשנות הגדרות מערכת.\\n\\nאם לא תאשר, רק הפונקציונליות של כפתורים אלו תהיה מוגבלת.</string>
     <string name="main_activity_permission_button_grant">הענק הרשאה</string>
     <string name="main_activity_permission_button_later">לא עכשיו</string>
-    <string name="netguard_unsafe_dialog_title">NetGuard אינו בטוח כרגע</string>
-    <string name="netguard_unsafe_dialog_message">נטגארד אינו בטוח כרגע, והאבטחה עליו תוסר.\\n\\nהאם ברצונך להסיר גם את נטגארד עצמו על הדרך?</string>
-    <string name="netguard_unsafe_button_uninstall">הסר את NetGuard</string>
-    <string name="netguard_unsafe_button_keep">השאר את NetGuard</string>
     <string name="kiosk_button_save_return">שמור וחזור לקיוסק</string>
     <string name="kiosk_admin_access_title">גישת מנהל</string>
     <string name="kiosk_admin_access_message">הזן את סיסמת המנהל כדי לגשת להגדרות.</string>
@@ -424,10 +413,6 @@
     <string name="permission_dialog_message">כדי שכפתורי ה-Wi-Fi, הבלוטות\' וסיבוב המסך יעבדו ממצב קיוסק, יש להעניק לאפליקציה הרשאה לשנות הגדרות מערכת.\\n\\nאם לא תאשר, רק הפונקציונליות של כפתורים אלו תהיה מוגבלת.</string>
     <string name="permission_dialog_button_confirm">הענק הרשאה</string>
     <string name="permission_dialog_button_cancel">לא עכשיו</string>
-    <string name="netguard_upgrade_dialog_title">NetGuard אינו בטוח כרגע</string>
-    <string name="netguard_upgrade_dialog_message">נטגארד אינו בטוח כרגע, והאבטחה עליו תוסר.\\n\\nהאם ברצונך להסיר גם את נטגארד עצמו על הדרך?</string>
-    <string name="netguard_upgrade_dialog_button_uninstall">הסר את NetGuard</string>
-    <string name="netguard_upgrade_dialog_button_keep">השאר את NetGuard</string>
     <string name="notification_initializing">Initializing services...</string>
     
     <string name="kiosk_dialog_admin_title">גישת מנהל</string>

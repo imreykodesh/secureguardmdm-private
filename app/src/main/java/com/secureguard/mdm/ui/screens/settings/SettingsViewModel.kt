@@ -18,7 +18,6 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.impl.BlockInternetVpnFeature
-import com.secureguard.mdm.features.impl.InstallAndProtectNetGuardFeature
 import com.secureguard.mdm.features.impl.NetfreeOnlyModeFeature
 import com.secureguard.mdm.features.registry.CategoryRegistry
 import com.secureguard.mdm.security.PasswordManager
@@ -212,7 +211,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val currentState = _uiState.value
             var hasChanges = false
-            var snackbarMessage = context.getString(R.string.dialog_changes_saved_successfully)
+            val snackbarMessage = context.getString(R.string.dialog_changes_saved_successfully)
 
             // Save new modular settings, ONLY IF CHANGED
             currentState.settingItemsByCategory.values.flatten().forEach { model ->
@@ -232,18 +231,24 @@ class SettingsViewModel @Inject constructor(
             }
 
             // Save main protection features, ONLY IF CHANGED
-            val wasNetGuardProtectedBeforeSave = initialProtectionTogglesState[InstallAndProtectNetGuardFeature.id] ?: false
             val changedProtectionToggles = currentState.protectionCategoryToggles
                 .flatMap { it.toggles }
                 .filter { initialProtectionTogglesState[it.feature.id] != it.isEnabled }
                 .sortedBy { it.isEnabled } // Disable competing owners before enabling a new VPN mode.
             changedProtectionToggles.forEach { toggle ->
                 hasChanges = true
-                toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
-                settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
-
-                if (toggle.feature.id == InstallAndProtectNetGuardFeature.id && wasNetGuardProtectedBeforeSave && !toggle.isEnabled && isNetGuardInstalled()) {
-                    snackbarMessage += "\n" + context.getString(R.string.toast_netguard_can_be_uninstalled)
+                if (toggle.feature.id == BlockInternetVpnFeature.id && toggle.isEnabled) {
+                    // Persist first so an empty-selection service startup can deterministically clear it.
+                    settingsRepository.setFeatureState(toggle.feature.id, true)
+                    runCatching {
+                        toggle.feature.applyPolicy(context, dpm, adminComponentName, true)
+                    }.onFailure {
+                        settingsRepository.setFeatureState(toggle.feature.id, false)
+                        throw it
+                    }
+                } else {
+                    toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
+                    settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
                 }
             }
 
@@ -441,15 +446,6 @@ class SettingsViewModel @Inject constructor(
 
     private fun showErrorDialog(title: String, message: String) {
         _errorDialogState.update { ErrorDialogState(isVisible = true, title = title, message = message) }
-    }
-
-    private fun isNetGuardInstalled(): Boolean {
-        return try {
-            context.packageManager.getPackageInfo("eu.faircode.netguard", 0)
-            true
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
-        }
     }
 
     private fun initiateRemoval() {

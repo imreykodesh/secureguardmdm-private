@@ -1,6 +1,7 @@
 package com.secureguard.mdm.firewall.engine
 
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.os.Build
 import com.celzero.firestack.backend.DNSOpts
@@ -14,7 +15,13 @@ import com.celzero.firestack.intra.Mark
 import com.celzero.firestack.intra.PreMark
 import com.celzero.firestack.intra.Tunnel
 import com.celzero.firestack.settings.Settings
+import com.secureguard.mdm.firewall.model.ConnectionDecision
+import com.secureguard.mdm.firewall.model.ConnectionEvent
+import com.secureguard.mdm.firewall.model.FirewallDecision
+import com.secureguard.mdm.firewall.model.FirewallPolicyMode
 import com.secureguard.mdm.firewall.model.FirewallProtocol
+import com.secureguard.mdm.firewall.model.MetadataSource
+import com.secureguard.mdm.firewall.model.NetworkType
 import com.secureguard.mdm.utils.FileLogger
 import java.net.IDN
 import java.net.InetAddress
@@ -27,6 +34,7 @@ class FirestackEngineAdapter(
     private val vpnService: VpnService,
     private val selfUid: Int,
     initialSnapshot: FirewallRuleSnapshot,
+    private val onConnectionEvent: (ConnectionEvent) -> Unit = {},
 ) {
     private val snapshot = AtomicReference(initialSnapshot)
     private val evaluator = RuleEvaluator()
@@ -95,16 +103,27 @@ class FirestackEngineAdapter(
         ): Mark {
             val endpoint = parseEndpoint(dst)
             val packageNames = packagesForUid(uid)
-            val knownDomains = parseDomains(domains) + parseDomains(probableDomains)
-            val decision = evaluator.evaluate(
-                snapshot.get(),
-                FirewallFlow(
-                    packageNames = packageNames,
-                    protocol = protocol.toFirewallProtocol(),
-                    destinationIp = endpoint.first,
-                    destinationPort = endpoint.second,
-                    domains = knownDomains,
-                ),
+            val dnsDomains = parseDomains(domains)
+            val probableTlsDomains = parseDomains(probableDomains)
+            val knownDomains = dnsDomains + probableTlsDomains
+            val currentSnapshot = snapshot.get()
+            val flow = FirewallFlow(
+                packageNames = packageNames,
+                protocol = protocol.toFirewallProtocol(),
+                destinationIp = endpoint.first,
+                destinationPort = endpoint.second,
+                domains = knownDomains,
+            )
+            val decision = evaluateWithAttribution(currentSnapshot, uid, flow)
+            recordConnection(
+                snapshot = currentSnapshot,
+                packageNames = packageNames,
+                uid = uid,
+                endpoint = endpoint,
+                protocol = protocol.toFirewallProtocol(),
+                dnsDomains = dnsDomains,
+                probableTlsDomains = probableTlsDomains,
+                decision = decision,
             )
             if (decision.blocked) {
                 FileLogger.log(TAG, "Blocked flow for uid=$uid (${decision.reason}).")
@@ -124,7 +143,47 @@ class FirestackEngineAdapter(
         override fun flowing(mark: Mark) = Unit
         override fun postflow(summary: FlowSummary) = Unit
 
-        override fun onQuery(url: String, qname: String, qtype: String, uid: Long): DNSOpts? = null
+        override fun onQuery(url: String, qname: String, qtype: String, uid: Long): DNSOpts {
+            val normalizedDomain = runCatching { RuleEvaluator.normalizeDomain(qname) }.getOrNull()
+            val currentSnapshot = snapshot.get()
+            val ownerUid = uid.toInt()
+            val packageNames = packagesForUid(ownerUid)
+            val decision = evaluateWithAttribution(
+                currentSnapshot,
+                ownerUid,
+                FirewallFlow(
+                    packageNames = packageNames,
+                    protocol = FirewallProtocol.ANY,
+                    destinationIp = null,
+                    destinationPort = null,
+                    domains = normalizedDomain?.let(::setOf).orEmpty(),
+                ),
+            )
+            if (decision.blocked) {
+                FileLogger.log(TAG, "Blocked DNS query for uid=$uid (${decision.reason}).")
+                if (normalizedDomain != null) {
+                    onConnectionEvent(
+                        ConnectionEvent(
+                            packageName = packageNames.singleOrNull { it in currentSnapshot.selectedPackages }
+                                ?: UNKNOWN_PACKAGE,
+                            uid = ownerUid,
+                            domain = normalizedDomain,
+                            destinationIp = "",
+                            destinationPort = DNS_PORT,
+                            protocol = FirewallProtocol.ANY,
+                            decision = ConnectionDecision.BLOCKED,
+                            decisionReason = decision.reason,
+                            metadataSource = MetadataSource.DNS,
+                            networkType = currentNetworkType(),
+                        ),
+                    )
+                }
+            }
+            return DNSOpts().apply {
+                this.uid = uid.toString()
+                tidcsv = if (decision.blocked) BLOCK_DNS_TRANSPORT else DEFAULT_DNS_TRANSPORT
+            }
+        }
         override fun onResponse(summary: DNSSummary) = Unit
         override fun onUpstreamAnswer(id: String, summary: DNSSummary, options: DNSOpts, server: String): DNSOpts? = null
         override fun onDNSAdded(id: String) = Unit
@@ -137,6 +196,72 @@ class FirestackEngineAdapter(
         override fun onProxyUpdated(id: String, addr: String) = Unit
         override fun onSvcComplete(summary: ServerSummary) = Unit
         override fun svcRoute(sid: String, pid: String, network: String, sipport: String, dipport: String): Tab? = null
+    }
+
+    private fun evaluateWithAttribution(
+        snapshot: FirewallRuleSnapshot,
+        uid: Int,
+        flow: FirewallFlow,
+    ): FirewallDecision {
+        val attributionMissing = uid != selfUid && (uid < 0 || flow.packageNames.isEmpty())
+        val enforcementActive = snapshot.policies.values.any { policy ->
+            policy.enabled && policy.policyMode in setOf(FirewallPolicyMode.BLOCKLIST, FirewallPolicyMode.ALLOWLIST)
+        }
+        if (attributionMissing && enforcementActive) {
+            return FirewallDecision(blocked = true, reason = "UNKNOWN_UID_FAIL_CLOSED")
+        }
+        return evaluator.evaluate(snapshot, flow)
+    }
+
+    private fun recordConnection(
+        snapshot: FirewallRuleSnapshot,
+        packageNames: Set<String>,
+        uid: Int,
+        endpoint: Pair<String?, Int?>,
+        protocol: FirewallProtocol,
+        dnsDomains: Set<String>,
+        probableTlsDomains: Set<String>,
+        decision: FirewallDecision,
+    ) {
+        val destinationIp = endpoint.first ?: return
+        val destinationPort = endpoint.second ?: return
+        val packageName = packageNames.singleOrNull { it in snapshot.selectedPackages } ?: UNKNOWN_PACKAGE
+        val domain = dnsDomains.firstOrNull() ?: probableTlsDomains.firstOrNull()
+        val metadataSource = when {
+            dnsDomains.isNotEmpty() -> MetadataSource.DNS
+            probableTlsDomains.isNotEmpty() -> MetadataSource.TLS_SNI
+            else -> MetadataSource.IP_ONLY
+        }
+        val policyMode = snapshot.policies[packageName]?.policyMode
+        val connectionDecision = when {
+            decision.blocked -> ConnectionDecision.BLOCKED
+            policyMode == FirewallPolicyMode.MONITOR_ONLY -> ConnectionDecision.MONITORED
+            else -> ConnectionDecision.ALLOWED
+        }
+        onConnectionEvent(
+            ConnectionEvent(
+                packageName = packageName,
+                uid = uid,
+                domain = domain,
+                destinationIp = destinationIp,
+                destinationPort = destinationPort,
+                protocol = protocol,
+                decision = connectionDecision,
+                decisionReason = decision.reason,
+                metadataSource = metadataSource,
+                networkType = currentNetworkType(),
+            ),
+        )
+    }
+
+    private fun currentNetworkType(): NetworkType {
+        val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        return when {
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> NetworkType.WIFI
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> NetworkType.CELLULAR
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true -> NetworkType.ETHERNET
+            else -> NetworkType.OTHER
+        }
     }
 
     private fun resolveOwnerUid(protocol: Int, reportedUid: Int, src: String, dst: String): Int {
@@ -199,5 +324,9 @@ class FirestackEngineAdapter(
         const val TAG = "FirestackEngine"
         const val DIRECT_EGRESS_PROXY = "Base"
         const val BLOCK_PROXY = "Block"
+        const val DEFAULT_DNS_TRANSPORT = "Goos"
+        const val BLOCK_DNS_TRANSPORT = "BlockAll"
+        const val DNS_PORT = 53
+        const val UNKNOWN_PACKAGE = "UNKNOWN"
     }
 }

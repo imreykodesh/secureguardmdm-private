@@ -295,7 +295,7 @@ class NetfreeMonitorService : Service(), NetworkWatcher.NetworkStateListener {
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.netfree_notification_content))
-            .setSmallIcon(R.drawable.ic_netguard_shield)
+            .setSmallIcon(R.drawable.ic_firewall_shield)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()

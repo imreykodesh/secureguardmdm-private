@@ -198,15 +198,8 @@
     <string name="feature_block_system_error_dialogs_description">Prevents showing system error popups (like "App crashed").</string>
     <string name="feature_block_password_change_title">Block Password Changes</string>
     <string name="feature_block_password_change_description">Prevents changing the device password</string>
-    <string name="toast_installing_netguard">Installing NetGuard...</string>
-    <string name="toast_netguard_can_be_uninstalled">NetGuard is no longer protected. The app can now be removed.</string>
     <string name="feature_block_vpn_settings_title">Block VPN Settings</string>
     <string name="feature_block_vpn_settings_description">Prevents the user from accessing the device\'s VPN settings screen.</string>
-    <string name="feature_install_netguard_title">Install and Protect NetGuard</string>
-    <string name="feature_install_netguard_description">Installs NetGuard and prevents its removal from the device.</string>
-    <string name="feature_force_netguard_vpn_title">Force NetGuard as Always-On VPN</string>
-    <string name="feature_force_netguard_vpn_description">Sets NetGuard as an Always-On VPN with lockdown.</string>
-    <string name="conflict_reason_netguard_installed">Disabled because NetGuard is installed</string>
     <string name="feature_frp_protection_title">Reset Protection (FRP)</string>
     <string name="feature_frp_protection_description">Prevents device reset by locking it to predefined Google accounts.</string>
     <string name="category_device_management">General Device Management</string>
@@ -381,10 +374,6 @@
     <string name="main_activity_permission_message">To enable Wi-Fi, Bluetooth, and screen rotation buttons to work from kiosk mode, you must grant the app permission to change system settings.\n\nIf you do not approve, only the functionality of these buttons will be limited.</string>
     <string name="main_activity_permission_button_grant">Grant Permission</string>
     <string name="main_activity_permission_button_later">Not Now</string>
-    <string name="netguard_unsafe_dialog_title">NetGuard is Currently Unsafe</string>
-    <string name="netguard_unsafe_dialog_message">NetGuard is currently unsafe, and its protection will be removed.\n\nWould you also like to remove NetGuard itself?</string>
-    <string name="netguard_unsafe_button_uninstall">Uninstall NetGuard</string>
-    <string name="netguard_unsafe_button_keep">Keep NetGuard</string>
     <string name="kiosk_button_save_return">Save and Return to Kiosk</string>
     <string name="kiosk_admin_access_title">Admin Access</string>
     <string name="kiosk_admin_access_message">Enter the admin password to access settings.</string>
@@ -422,10 +411,6 @@
     <string name="permission_dialog_message">To enable Wi-Fi, Bluetooth, and screen rotation buttons to work from kiosk mode, you must grant the app permission to change system settings.\n\nIf you do not approve, only the functionality of these buttons will be limited.</string>
     <string name="permission_dialog_button_confirm">Grant Permission</string>
     <string name="permission_dialog_button_cancel">Not Now</string>
-    <string name="netguard_upgrade_dialog_title">NetGuard is Currently Unsafe</string>
-    <string name="netguard_upgrade_dialog_message">NetGuard is currently unsafe, and its protection will be removed.\n\nWould you also like to remove NetGuard itself?</string>
-    <string name="netguard_upgrade_dialog_button_uninstall">Uninstall NetGuard</string>
-    <string name="netguard_upgrade_dialog_button_keep">Keep NetGuard</string>
     <string name="notification_initializing">Initializing services...</string>
     
     <string name="kiosk_dialog_admin_title">Admin Access</string>

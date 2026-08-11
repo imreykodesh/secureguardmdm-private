@@ -3,6 +3,7 @@ package com.secureguard.mdm.services
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +15,10 @@ import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
 import com.secureguard.mdm.R
+import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
+import com.secureguard.mdm.data.repository.SettingsRepository
+import com.secureguard.mdm.features.impl.BlockInternetVpnFeature
+import com.secureguard.mdm.firewall.data.ConnectionHistoryRecorder
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepository
 import com.secureguard.mdm.firewall.engine.FirestackEngineAdapter
 import com.secureguard.mdm.firewall.engine.FirewallRuleSnapshot
@@ -31,6 +36,9 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class BlockerVpnService : VpnService() {
     @Inject lateinit var firewallRepository: FirewallPolicyRepository
+    @Inject lateinit var connectionHistoryRecorder: ConnectionHistoryRecorder
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var devicePolicyManager: DevicePolicyManager
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val actionGeneration = AtomicLong(0)
@@ -67,16 +75,19 @@ class BlockerVpnService : VpnService() {
         when (intent?.action) {
             ACTION_STOP -> stopAndInvalidate()
             ACTION_RELOAD_RULES -> serviceScope.launch {
+                val snapshot = firewallRepository.loadSnapshot()
                 val activeEngine = synchronized(this@BlockerVpnService) { firestackEngine }
                 if (activeEngine == null) {
-                    stopSelf()
+                    FileLogger.log(TAG, "Rule reload requested without an active engine; rebuilding VPN.")
+                    rebuildVpn(preferredNetwork, deactivateIfEmpty = true)
                     return@launch
                 }
-                val snapshot = firewallRepository.loadSnapshot()
                 activeEngine.updateSnapshot(snapshot)
                 FileLogger.log(TAG, "Reloaded ${snapshot.rulesByPackage.values.sumOf(List<*>::size)} firewall rules.")
             }
-            ACTION_START, ACTION_REBUILD_INTERFACE, ACTION_NETWORK_CHANGED, null -> rebuildVpn(preferredNetwork)
+            ACTION_START, ACTION_REBUILD_INTERFACE, null ->
+                rebuildVpn(preferredNetwork, deactivateIfEmpty = true)
+            ACTION_NETWORK_CHANGED -> rebuildVpn(preferredNetwork, deactivateIfEmpty = false)
             else -> FileLogger.log(TAG, "Ignoring unknown action ${intent.action}.")
         }
         return START_STICKY
@@ -89,7 +100,7 @@ class BlockerVpnService : VpnService() {
         stopSelf()
     }
 
-    private fun rebuildVpn(preferredNetwork: Network?) {
+    private fun rebuildVpn(preferredNetwork: Network?, deactivateIfEmpty: Boolean) {
         val generation = actionGeneration.incrementAndGet()
         rebuildJob?.cancel()
         rebuildJob = serviceScope.launch {
@@ -100,6 +111,7 @@ class BlockerVpnService : VpnService() {
             val selectedPackages = eligiblePackages(snapshot.selectedPackages)
             if (selectedPackages.isEmpty()) {
                 FileLogger.log(TAG, "No eligible selected applications; VPN interface was not established.")
+                if (deactivateIfEmpty) deactivateInternalFirewallIfOwned()
                 stopSelf()
                 return@launch
             }
@@ -147,7 +159,12 @@ class BlockerVpnService : VpnService() {
     ): Boolean {
         if (!isCurrent(generation)) return false
         val tunFd = descriptor.detachFd()
-        val engine = FirestackEngineAdapter(this, applicationInfo.uid, snapshot)
+        val engine = FirestackEngineAdapter(
+            vpnService = this,
+            selfUid = applicationInfo.uid,
+            initialSnapshot = snapshot,
+            onConnectionEvent = connectionHistoryRecorder::record,
+        )
         engine.start(tunFd, VPN_MTU)
         if (!isCurrent(generation)) {
             engine.stop()
@@ -155,6 +172,22 @@ class BlockerVpnService : VpnService() {
         }
         firestackEngine = engine
         return true
+    }
+
+    private suspend fun deactivateInternalFirewallIfOwned() {
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                devicePolicyManager.isDeviceOwnerApp(packageName)
+            ) {
+                val admin = SecureGuardDeviceAdminReceiver.getComponentName(this)
+                if (devicePolicyManager.getAlwaysOnVpnPackage(admin) == packageName) {
+                    devicePolicyManager.setAlwaysOnVpnPackage(admin, null, false)
+                }
+            }
+            settingsRepository.setFeatureState(BlockInternetVpnFeature.id, false)
+        }.onFailure {
+            FileLogger.log(TAG, "Unable to clear inactive firewall state: ${it.message}")
+        }
     }
 
     private fun eligiblePackages(selectedPackages: Set<String>): Set<String> = selectedPackages.mapNotNull { candidate ->
@@ -216,7 +249,7 @@ class BlockerVpnService : VpnService() {
         return NotificationCompat.Builder(this, VPN_NOTIFICATION_CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.vpn_notification_content))
-            .setSmallIcon(R.drawable.ic_netguard_shield)
+            .setSmallIcon(R.drawable.ic_firewall_shield)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()

@@ -17,7 +17,7 @@ object NetfreeOnlyModeFeature : ProtectionFeature {
     override val id = "netfree_only_mode"
     override val titleRes = R.string.feature_netfree_only_title
     override val descriptionRes = R.string.feature_netfree_only_description
-    override val iconRes = R.drawable.ic_netguard_shield
+    override val iconRes = R.drawable.ic_firewall_shield
     override val requiredSdkVersion = Build.VERSION_CODES.N
 
     /**

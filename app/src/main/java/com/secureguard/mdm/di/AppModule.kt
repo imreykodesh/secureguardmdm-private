@@ -16,6 +16,8 @@ import com.secureguard.mdm.data.db.BlockedAppCacheDao
 import com.secureguard.mdm.data.local.PreferencesManager
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.data.repository.SettingsRepositoryImpl
+import com.secureguard.mdm.firewall.data.ConnectionHistoryRepository
+import com.secureguard.mdm.firewall.data.ConnectionHistoryRepositoryImpl
 import com.secureguard.mdm.firewall.data.FirewallDao
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepository
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepositoryImpl
@@ -39,7 +41,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "secure_guard_database"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 
     @Provides
@@ -55,6 +57,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirewallPolicyRepository(impl: FirewallPolicyRepositoryImpl): FirewallPolicyRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideConnectionHistoryRepository(
+        impl: ConnectionHistoryRepositoryImpl,
+    ): ConnectionHistoryRepository = impl
 
     @Provides
     @Singleton
@@ -161,6 +169,39 @@ object AppModule {
             db.execSQL(
                 "CREATE UNIQUE INDEX IF NOT EXISTS `index_firewall_rule_package_name_rule_type_action_value_protocol_port_start_port_end` " +
                     "ON `firewall_rule` (`package_name`, `rule_type`, `action`, `value`, `protocol`, `port_start`, `port_end`)",
+            )
+        }
+    }
+
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `connection_history` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `package_name` TEXT NOT NULL,
+                    `uid` INTEGER NOT NULL,
+                    `normalized_destination` TEXT NOT NULL,
+                    `domain` TEXT,
+                    `destination_ip` TEXT NOT NULL,
+                    `destination_port` INTEGER NOT NULL,
+                    `protocol` TEXT NOT NULL,
+                    `first_seen_at` INTEGER NOT NULL,
+                    `last_seen_at` INTEGER NOT NULL,
+                    `connection_count` INTEGER NOT NULL,
+                    `last_decision` TEXT NOT NULL,
+                    `decision_reason` TEXT NOT NULL,
+                    `metadata_source` TEXT NOT NULL,
+                    `network_type` TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_connection_history_last_seen_at` ON `connection_history` (`last_seen_at`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_connection_history_package_name` ON `connection_history` (`package_name`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_connection_history_package_name_normalized_destination` ON `connection_history` (`package_name`, `normalized_destination`)")
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_connection_history_package_name_normalized_destination_destination_port_protocol_last_decision` " +
+                    "ON `connection_history` (`package_name`, `normalized_destination`, `destination_port`, `protocol`, `last_decision`)",
             )
         }
     }
