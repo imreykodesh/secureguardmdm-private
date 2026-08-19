@@ -21,6 +21,9 @@ import com.secureguard.mdm.firewall.data.ConnectionHistoryRepositoryImpl
 import com.secureguard.mdm.firewall.data.FirewallDao
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepository
 import com.secureguard.mdm.firewall.data.FirewallPolicyRepositoryImpl
+import com.secureguard.mdm.ministore.data.MiniStoreUpdateCheckDao
+import com.secureguard.mdm.ministore.inventory.AndroidInstalledPackageInventoryProvider
+import com.secureguard.mdm.ministore.inventory.InstalledPackageInventoryProvider
 import com.secureguard.mdm.utils.SecureUpdateHelper
 import com.secureguard.mdm.utils.update.UpdateManager
 import dagger.Module
@@ -41,7 +44,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "secure_guard_database"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 
     @Provides
@@ -53,6 +56,17 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirewallDao(appDatabase: AppDatabase): FirewallDao = appDatabase.firewallDao()
+
+    @Provides
+    @Singleton
+    fun provideMiniStoreUpdateCheckDao(appDatabase: AppDatabase): MiniStoreUpdateCheckDao =
+        appDatabase.miniStoreUpdateCheckDao()
+
+    @Provides
+    @Singleton
+    fun provideInstalledPackageInventoryProvider(
+        implementation: AndroidInstalledPackageInventoryProvider,
+    ): InstalledPackageInventoryProvider = implementation
 
     @Provides
     @Singleton
@@ -102,8 +116,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideUpdateManager(@ApplicationContext context: Context, secureUpdateHelper: SecureUpdateHelper, preferencesManager: PreferencesManager): UpdateManager {
-        return UpdateManager(context, secureUpdateHelper, preferencesManager)
+    fun provideUpdateManager(
+        @ApplicationContext context: Context,
+        preferencesManager: PreferencesManager,
+    ): UpdateManager {
+        return UpdateManager(context, preferencesManager)
     }
 
     @Provides
@@ -205,5 +222,24 @@ object AppModule {
             )
         }
     }
-}
 
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mini_store_update_check` (
+                    `package_name` TEXT NOT NULL,
+                    `installed_version_code` INTEGER NOT NULL,
+                    `available_version_code` INTEGER,
+                    `available_version_name` TEXT,
+                    `source` TEXT,
+                    `status` TEXT NOT NULL,
+                    `checked_at_epoch_millis` INTEGER NOT NULL,
+                    `failure_code` TEXT,
+                    PRIMARY KEY(`package_name`)
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+}

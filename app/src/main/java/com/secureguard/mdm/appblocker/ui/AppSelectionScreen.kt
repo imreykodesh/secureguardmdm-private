@@ -1,116 +1,207 @@
 package com.secureguard.mdm.appblocker.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.res.stringResource
-import com.secureguard.mdm.R
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
+import com.secureguard.mdm.R
 import com.secureguard.mdm.appblocker.AppBlockerEvent
 import com.secureguard.mdm.appblocker.AppBlockerViewModel
 import com.secureguard.mdm.appblocker.AppFilterType
 import com.secureguard.mdm.appblocker.AppInfo
-import kotlinx.coroutines.launch
+import com.secureguard.mdm.appblocker.AppStatusFilter
+import com.secureguard.mdm.ui.components.AppCenterTab
+import com.secureguard.mdm.ui.components.AppCenterTabs
+import com.secureguard.mdm.ui.components.PasswordPromptDialog
 
+/**
+ * Single protection screen: choose what to block or suspend, review what is
+ * already restricted, release it, and remove apps.
+ *
+ * Blocking and "blocked apps" used to be two screens with almost the same list,
+ * which made it unclear where a change would land. They are now one list with a
+ * status filter. Removal lives here rather than next to the updates, so a
+ * destructive tap is not one pixel away from a maintenance tap.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSelectionScreen(
     viewModel: AppBlockerViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToUpdates: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddPackageDialog by remember { mutableStateOf(false) }
-    var showActionChoiceDialog by remember { mutableStateOf<AppInfo?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadAllData()
+    LaunchedEffect(uiState.message) {
+        val message = uiState.message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.onEvent(AppBlockerEvent.OnClearMessage)
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(id = R.string.app_selection_title)) },
+                title = { Text(stringResource(id = R.string.app_center_tab_protection)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.dialog_button_cancel))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.dialog_button_cancel),
+                        )
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddPackageDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.app_selection_desc_add_manual))
+                    if (uiState.accessGranted) {
+                        IconButton(onClick = { showAddPackageDialog = true }) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = stringResource(id = R.string.app_selection_desc_add_manual),
+                            )
+                        }
+                        if (uiState.statusFilter == AppStatusFilter.ALL) {
+                            FilterMenu(
+                                currentFilter = uiState.currentFilter,
+                                onFilterSelected = { viewModel.onEvent(AppBlockerEvent.OnFilterChanged(it)) },
+                            )
+                        }
                     }
-                    FilterMenu(
-                        currentFilter = uiState.currentFilter,
-                        onFilterSelected = { viewModel.onEvent(AppBlockerEvent.OnFilterChanged(it)) }
-                    )
-                }
+                },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
-                coroutineScope.launch { snackbarHostState.showSnackbar(context.getString(R.string.toast_changes_saved_active)) }
-            }) {
-                Icon(Icons.Default.Save, contentDescription = stringResource(id = R.string.settings_button_save))
-            }
-        }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            AppCenterTabs(
+                selected = AppCenterTab.PROTECTION,
+                onSelect = { tab ->
+                    when (tab) {
+                        AppCenterTab.UPDATES -> onNavigateToUpdates()
+                        AppCenterTab.PROTECTION -> Unit
+                    }
+                },
+            )
+
+            if (!uiState.accessGranted) {
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(id = R.string.app_center_protection_locked),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            } else {
+            StatusFilterRow(
+                selected = uiState.statusFilter,
+                blockedCount = uiState.blockedCount,
+                suspendedCount = uiState.suspendedCount,
+                onSelect = { viewModel.onEvent(AppBlockerEvent.OnStatusFilterChanged(it)) },
+            )
+
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.onEvent(AppBlockerEvent.OnSearchQueryChanged(it)) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 label = { Text(stringResource(id = R.string.app_selection_label_search)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(id = R.string.app_selection_label_search)) },
-                singleLine = true
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = stringResource(id = R.string.app_selection_label_search),
+                    )
+                },
+                singleLine = true,
             )
 
-            if (uiState.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            val apps = uiState.displayedAppsForSelection
+            when {
+                uiState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(items = uiState.displayedAppsForSelection, key = { it.packageName }) { appInfo ->
-                        AppSelectionRow(
-                            appInfo = appInfo,
-                            onCheckedChange = { isChecked ->
-                                // Changes are applied only on save, not immediately
-                                if (isChecked) {
-                                    showActionChoiceDialog = appInfo
-                                } else {
-                                    // For unchecking, we don't immediately apply changes
-                                    // The user must save to apply the deselection
-                                }
-                            },
-                            onActionClick = { showActionChoiceDialog = appInfo }
+                apps.isEmpty() -> {
+                    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stringResource(id = R.string.app_center_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         )
-                        HorizontalDivider()
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(items = apps, key = { it.packageName }) { appInfo ->
+                            ProtectionAppCard(
+                                appInfo = appInfo,
+                                onBlock = {
+                                    viewModel.onEvent(
+                                        AppBlockerEvent.OnAppSelectionChanged(appInfo.packageName, true)
+                                    )
+                                    viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
+                                },
+                                onReleaseBlock = {
+                                    viewModel.onEvent(
+                                        AppBlockerEvent.OnToggleUnblockSelection(appInfo.packageName)
+                                    )
+                                    viewModel.onEvent(AppBlockerEvent.OnUnblockSelectedRequest)
+                                },
+                                onSuspend = {
+                                    viewModel.onEvent(
+                                        AppBlockerEvent.OnAppSuspensionChanged(appInfo.packageName, true)
+                                    )
+                                    viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
+                                },
+                                onReleaseSuspend = {
+                                    viewModel.onEvent(
+                                        AppBlockerEvent.OnToggleUnsuspendSelection(appInfo.packageName)
+                                    )
+                                    viewModel.onEvent(AppBlockerEvent.OnUnsuspendSelectedRequest)
+                                },
+                                onUninstall = { viewModel.onEvent(AppBlockerEvent.OnRequestUninstall(appInfo)) },
+                            )
+                        }
                     }
                 }
             }
+            }
         }
+    }
+
+    if (!uiState.accessGranted) {
+        PasswordPromptDialog(
+            passwordError = uiState.passwordError,
+            enabled = !uiState.isAuthenticating,
+            onConfirm = { viewModel.onEvent(AppBlockerEvent.OnSubmitPassword(it)) },
+            onDismiss = onNavigateBack,
+        )
     }
 
     if (showAddPackageDialog) {
@@ -125,35 +216,83 @@ fun AppSelectionScreen(
             onConfirm = {
                 val error = viewModel.addPackageManually(manualPackageName)
                 if (error == null) {
+                    viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
                     showAddPackageDialog = false
                 } else {
                     errorText = error
                 }
-            }
+            },
         )
     }
 
     if (uiState.showCriticalAppsWarning && uiState.criticalAppsDetected.isNotEmpty()) {
         CriticalAppsWarningDialog(
             criticalApps = uiState.criticalAppsDetected,
-            onDismiss = { viewModel.onEvent(AppBlockerEvent.OnDismissCriticalAppsWarning) }
+            onDismiss = { viewModel.onEvent(AppBlockerEvent.OnDismissCriticalAppsWarning) },
         )
     }
 
-    showActionChoiceDialog?.let { appInfo ->
-        AppSelectionActionChoiceDialog(
-            appInfo = appInfo,
-            onDismiss = { showActionChoiceDialog = null },
-            onChooseBlock = {
-                showActionChoiceDialog = null
-                viewModel.onEvent(AppBlockerEvent.OnAppSelectionChanged(appInfo.packageName, true))
-                viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
+    uiState.pendingUninstall?.let { app ->
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(AppBlockerEvent.OnCancelUninstall) },
+            icon = {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
             },
-            onChooseSuspend = {
-                showActionChoiceDialog = null
-                viewModel.onEvent(AppBlockerEvent.OnAppSuspensionChanged(appInfo.packageName, true))
-                viewModel.onEvent(AppBlockerEvent.OnSaveRequest)
-            }
+            title = { Text(stringResource(id = R.string.app_center_uninstall_title, app.appName)) },
+            text = { Text(stringResource(id = R.string.app_center_uninstall_message)) },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.onEvent(AppBlockerEvent.OnConfirmUninstall) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) { Text(stringResource(id = R.string.app_center_action_uninstall)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(AppBlockerEvent.OnCancelUninstall) }) {
+                    Text(stringResource(id = R.string.dialog_button_cancel))
+                }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatusFilterRow(
+    selected: AppStatusFilter,
+    blockedCount: Int,
+    suspendedCount: Int,
+    onSelect: (AppStatusFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selected == AppStatusFilter.ALL,
+            onClick = { onSelect(AppStatusFilter.ALL) },
+            label = { Text(stringResource(id = R.string.app_center_filter_all)) },
+        )
+        FilterChip(
+            selected = selected == AppStatusFilter.BLOCKED,
+            onClick = { onSelect(AppStatusFilter.BLOCKED) },
+            label = { Text(stringResource(id = R.string.app_center_filter_blocked, blockedCount)) },
+            leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        )
+        FilterChip(
+            selected = selected == AppStatusFilter.SUSPENDED,
+            onClick = { onSelect(AppStatusFilter.SUSPENDED) },
+            label = { Text(stringResource(id = R.string.app_center_filter_suspended, suspendedCount)) },
+            leadingIcon = { Icon(Icons.Default.PauseCircle, contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
     }
 }
@@ -162,7 +301,9 @@ fun AppSelectionScreen(
 private fun FilterMenu(currentFilter: AppFilterType, onFilterSelected: (AppFilterType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.FilterList, contentDescription = stringResource(id = R.string.app_selection_desc_filter)) }
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Default.FilterList, contentDescription = stringResource(id = R.string.app_selection_desc_filter))
+        }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text(stringResource(id = R.string.app_selection_filter_user)) }, onClick = { onFilterSelected(AppFilterType.USER_ONLY); expanded = false })
             DropdownMenuItem(text = { Text(stringResource(id = R.string.app_selection_filter_launcher)) }, onClick = { onFilterSelected(AppFilterType.LAUNCHER_ONLY); expanded = false })
@@ -202,69 +343,147 @@ fun AddPackageDialog(
     )
 }
 
+/**
+ * Same card layout as the update list, so moving between the two tabs does not
+ * feel like moving between two applications.
+ *
+ * Three primary actions, each stating what it does rather than relying on a
+ * checkbox whose meaning changes with the active filter.
+ */
 @Composable
-private fun AppSelectionRow(
+private fun ProtectionAppCard(
     appInfo: AppInfo,
-    onCheckedChange: (Boolean) -> Unit,
-    onActionClick: () -> Unit
+    onBlock: () -> Unit,
+    onReleaseBlock: () -> Unit,
+    onSuspend: () -> Unit,
+    onReleaseSuspend: () -> Unit,
+    onUninstall: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onActionClick() }.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Image(painter = rememberDrawablePainter(drawable = appInfo.icon), contentDescription = null, modifier = Modifier.size(40.dp))
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = appInfo.appName, style = MaterialTheme.typography.bodyLarge)
-            if (appInfo.isBlocked) {
-                Text(text = "חסומה", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            } else if (appInfo.isSuspended) {
-                Text(text = "מושבתת", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    val canUninstall = appInfo.isInstalled && !appInfo.isSystemApp
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = rememberDrawablePainter(drawable = appInfo.icon),
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = Color.Unspecified,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = appInfo.appName,
+                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (appInfo.isSystemApp) {
+                        Spacer(Modifier.width(8.dp))
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.mini_store_system_badge),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
+                }
+                Text(appInfo.packageName, style = MaterialTheme.typography.bodySmall)
+                when {
+                    appInfo.isBlocked -> Text(
+                        text = stringResource(id = R.string.app_center_status_blocked),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    appInfo.isSuspended -> Text(
+                        text = stringResource(id = R.string.app_center_status_suspended),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                if (!appInfo.isInstalled) {
+                    Text(
+                        text = stringResource(id = R.string.app_center_not_installed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    )
+                } else if (appInfo.isSystemApp) {
+                    // The note lives next to the action it explains.
+                    Text(
+                        text = stringResource(id = R.string.mini_store_system_protected),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        // Removed the block button, keeping only the checkmark
-        Checkbox(checked = appInfo.isBlocked || appInfo.isSuspended, onCheckedChange = { onCheckedChange(it) })
+        // Three actions of equal width. Hebrew labels such as "שחרר חסימה" do not
+        // fit next to icons in a third of the card, so the label carries the
+        // meaning and the icons stay out of the row.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = onUninstall,
+                modifier = Modifier.weight(1f),
+                enabled = canUninstall,
+                contentPadding = ButtonDefaults.TextButtonContentPadding,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                ActionLabel(stringResource(id = R.string.app_center_action_uninstall))
+            }
+            OutlinedButton(
+                onClick = if (appInfo.isSuspended) onReleaseSuspend else onSuspend,
+                modifier = Modifier.weight(1f),
+                enabled = appInfo.isSuspended || !appInfo.isBlocked,
+                contentPadding = ButtonDefaults.TextButtonContentPadding,
+            ) {
+                ActionLabel(
+                    stringResource(
+                        id = if (appInfo.isSuspended) {
+                            R.string.app_center_release_suspend
+                        } else {
+                            R.string.app_center_action_suspend
+                        },
+                    ),
+                )
+            }
+            Button(
+                onClick = if (appInfo.isBlocked) onReleaseBlock else onBlock,
+                modifier = Modifier.weight(1f),
+                contentPadding = ButtonDefaults.TextButtonContentPadding,
+            ) {
+                ActionLabel(
+                    stringResource(
+                        id = if (appInfo.isBlocked) {
+                            R.string.app_center_release_block
+                        } else {
+                            R.string.app_center_action_block
+                        },
+                    ),
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun AppSelectionActionChoiceDialog(
-    appInfo: AppInfo,
-    onDismiss: () -> Unit,
-    onChooseBlock: () -> Unit,
-    onChooseSuspend: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("פעולה עבור ${appInfo.appName}") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("בחר מה לבצע עבור האפליקציה")
-                Button(
-                    onClick = onChooseBlock,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Block, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("חסימה")
-                }
-                OutlinedButton(
-                    onClick = onChooseSuspend,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.PauseCircle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("השבתה")
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(id = R.string.dialog_button_cancel))
-            }
-        }
+private fun ActionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
     )
 }
 

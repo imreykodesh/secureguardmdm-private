@@ -17,6 +17,7 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.api.ProtectionFeature
 import com.secureguard.mdm.receivers.InstallReceiver
+import com.secureguard.mdm.utils.InstallRestrictionGuard
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -133,30 +134,33 @@ object BlockIncomingCallsFeature : ProtectionFeature {
             Toast.makeText(context, R.string.toast_installing_nophone, Toast.LENGTH_SHORT).show()
         }
         try {
-            val packageInstaller = context.packageManager.packageInstaller
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-            val sessionId = packageInstaller.createSession(params)
-            val session = packageInstaller.openSession(sessionId)
+            // NoPhone is the one intentional new-package install, so it needs the
+            // same window as an update when installation is blocked by policy.
+            InstallRestrictionGuard.withInstallAllowedBlocking(context) {
+                val packageInstaller = context.packageManager.packageInstaller
+                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+                val sessionId = packageInstaller.createSession(params)
+                val session = packageInstaller.openSession(sessionId)
 
-            context.assets.open(NO_PHONE_ASSET_NAME).use { assetStream ->
-                session.openWrite("nophone_install_session", 0, -1).use { sessionStream ->
-                    assetStream.copyTo(sessionStream)
-                    session.fsync(sessionStream)
+                context.assets.open(NO_PHONE_ASSET_NAME).use { assetStream ->
+                    session.openWrite("nophone_install_session", 0, -1).use { sessionStream ->
+                        assetStream.copyTo(sessionStream)
+                        session.fsync(sessionStream)
+                    }
                 }
+                val intent = Intent(context, InstallReceiver::class.java).apply {
+                    putExtra("package_name", NO_PHONE_PACKAGE_NAME)
+                }
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context, sessionId, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+                )
+
+                session.commit(pendingIntent.intentSender)
+                session.close()
+                Log.d(TAG, "NoPhone installation session committed.")
             }
-            val intent = Intent(context, InstallReceiver::class.java).apply {
-                putExtra("package_name", NO_PHONE_PACKAGE_NAME)
-            }
-
-            val pendingIntent = PendingIntent.getBroadcast(
-                context, sessionId, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            )
-
-            session.commit(pendingIntent.intentSender)
-            session.close()
-            Log.d(TAG, "NoPhone installation session committed.")
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to install NoPhone app from assets.", e)
         }

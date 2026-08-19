@@ -13,8 +13,9 @@ object SettingsRegistry {
     val allSettings: List<SettingsFeature> = listOf(
         // קטגוריית ניהול אפליקציות
         NavigateToAppSelectionSetting,
-        NavigateToBlockedAppsSetting,
         NavigateToFirewallSetting,
+        NavigateToDeviceHealthSetting,
+        ToggleMiniStorePasswordSetting,
 
         // קטגוריית התאמה אישית והתנהגות
         ToggleUiPositionSetting,

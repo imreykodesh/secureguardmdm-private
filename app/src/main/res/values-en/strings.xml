@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- app info -->
-    <string name="app_name">A Bloq</string>
-    <string name="app_version_name_for_logic" translatable="false">0.4.6</string>
-    <string name="device_admin_description">Allows A Bloq to enforce security policies on the device.</string>
-    <string name="app_version">Beta 0.4.5</string>
+    <string name="app_name">Mafteach</string>
+    <string name="device_admin_description">Allows Mafteach to enforce security policies on the device.</string>
     <string name="unofficial_warning_title">Security Warning</string>
     <string name="unofficial_warning_message">This application is unofficial and has been modified!</string>
 
     <!-- Provisioning Screen -->
     <string name="provisioning_title">Device Administration Required</string>
-    <string name="provisioning_description">For A Bloq to function, it must be set as a "Device Owner". This can only be done on a new or factory-reset device.</string>
+    <string name="provisioning_description">For Mafteach to function, it must be set as a "Device Owner". This can only be done on a new or factory-reset device.</string>
     <string name="provisioning_option_adb">Option 1: Enable via ADB (Recommended)</string>
     <string name="provisioning_adb_instructions">1. Install the app on the device.\n2. Enable "Developer Options" and "USB Debugging".\n3. Connect the device to a computer and run the following command:</string>
     <string name="provisioning_adb_command">adb shell dpm set-device-owner com.secureguard.mdm/.SecureGuardDeviceAdminReceiver</string>
@@ -24,7 +22,7 @@
     <string name="provisioning_root_failed">Root activation failed.</string>
 
     <!-- Setup Screen -->
-    <string name="setup_title">Welcome to A Bloq</string>
+    <string name="setup_title">Welcome to Mafteach</string>
     <string name="setup_description">To get started, please create an admin password. This password will be used to change security settings.</string>
     <string name="setup_password_label">Password</string>
     <string name="setup_confirm_password_label">Confirm Password</string>
@@ -43,12 +41,18 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">Manage Settings</string>
+    <string name="settings_search_label">Search settings</string>
+    <string name="settings_search_placeholder">For example: VPN, apps, or updates</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_no_results">No matching settings found</string>
+    <string name="settings_collapse_all_categories">Collapse all</string>
+    <string name="settings_expand_all_categories">Expand all</string>
     <string name="settings_button_save">Save Changes</string>
     <string name="settings_unsupported_device">Not supported on this device</string>
     <string name="settings_unsupported_device_details">Requires Android %1$d (%2$s) or higher.</string>
     <string name="settings_item_change_password">Change Admin Password</string>
-    <string name="settings_item_remove_protection">Remove A Bloq and Protections</string>
-    <string name="settings_item_removal_options">A Bloq Removal Options</string>
+    <string name="settings_item_remove_protection">Remove Mafteach and Protections</string>
+    <string name="settings_item_removal_options">Mafteach Removal Options</string>
     <string name="settings_remove_protection_dialog_title">Are you sure?</string>
     <string name="settings_remove_protection_dialog_message">This action will remove all protections, delete the app\'s device administration permissions, and prompt you to uninstall it. This cannot be undone.</string>
     <string name="settings_item_select_apps_to_block">Select Apps to Block</string>
@@ -213,7 +217,7 @@
     <string name="feature_frp_protection_experimental_tag">(Experimental)</string>
     <string name="frp_warning_dialog_title">Warning: Experimental Feature</string>
     <string name="frp_warning_dialog_message">Enabling FRP protection is an advanced action that may, in rare cases or with incorrect configuration, permanently lock the device and require manufacturer intervention. Are you sure you want to continue?</string>
-    <string name="contact_email">c51525355@gmail.com</string>
+    <string name="contact_email">imreykodesh@gmail.com</string>
 
     <string name="settings_item_enable_updates">Enable App Updates</string>
     <string name="category_ui_and_behavior">Customization and Behavior</string>
@@ -239,7 +243,7 @@
     <string name="update_channel_explanation_title">Explanation</string>
     <string name="update_channel_explanation_message">It is recommended to choose the stable channel, but if you want the latest features as soon as they are released, you can choose the Prebuild channel.</string>
     <string name="settings_item_frp">Set Custom FRP</string>
-    <string name="boot_notification_message">A Bloq started with device boot!</string>
+    <string name="boot_notification_message">Mafteach started with device boot!</string>
     <string name="settings_item_show_boot_toast">Show notification on device boot</string>
     <string name="category_kiosk_mode">Kiosk Mode</string>
     <string name="settings_item_manage_kiosk">Manage Kiosk Mode</string>
@@ -336,8 +340,10 @@
     <string name="app_info_status">Status:</string>
     <string name="app_info_author">Creator:</string>
     <string name="app_info_author_name">Yossi Poli</string>
-    <string name="app_info_forum_user">On Top Forums:</string>
-    <string name="app_info_forum_user_name">@iosi-poli</string>
+    <string name="app_info_upgrade">Upgrade:</string>
+    <string name="app_info_upgrade_name">Bios Imrei Kodesh</string>
+    <string name="app_info_forum_user">Mitmachim Top:</string>
+    <string name="app_info_forum_user_name">@ביוס</string>
     <string name="app_info_contact_us">Contact Us:</string>
     <string name="app_info_button_contact_email">Contact by Email</string>
     <string name="app_info_button_close">Close</string>
@@ -360,9 +366,9 @@
     <string name="removal_error_runtime_title">Runtime Error</string>
     <string name="removal_error_unexpected_title">Unexpected Error</string>
     <string name="settings_desc_more_info">More Info</string>
-    <string name="removal_options_dialog_title">A Bloq Removal Options</string>
+    <string name="removal_options_dialog_title">Mafteach Removal Options</string>
     <string name="removal_options_dialog_message">Choose the desired option:</string>
-    <string name="removal_options_button_regular">Regular A Bloq Removal</string>
+    <string name="removal_options_button_regular">Regular Mafteach Removal</string>
     <string name="removal_options_button_transfer">Transfer Ownership Before Removal</string>
     <string name="device_admin_selection_dialog_title">Select Device Administration App</string>
     <string name="device_admin_selection_dialog_empty">No other device administration apps found on this device.</string>
@@ -429,8 +435,109 @@
     <string name="kiosk_empty_state_button">Add Apps Now</string>
     <string name="kiosk_desc_power">Power Off/On</string>
     <string name="kiosk_desc_settings">Settings</string>
-    <string name="main_service_initializing">A Bloq started with device boot.</string>
+    <string name="main_service_initializing">Mafteach started with device boot.</string>
     <string name="settings_item_firewall">Per-app network filtering</string>
     <string name="feature_vpn_title_new">Internal per-app firewall</string>
     <string name="feature_vpn_description_new">Routes only selected apps through the internal VPN and enforces their allow and block rules.</string>
+
+    <!-- Modular settings descriptions and organization -->
+    <string name="settings_description_select_apps_to_block">Choose which apps are blocked on the device.</string>
+    <string name="settings_description_view_blocked_apps">Review and manage currently blocked apps.</string>
+    <string name="settings_description_firewall">Manage per-app network filtering and rules.</string>
+    <string name="device_health_title">Device Health</string>
+    <string name="device_health_setting_description">Check device permissions, VPN, and active protections.</string>
+    <string name="device_health_refresh">Refresh health check</string>
+    <string name="device_health_device_owner">Device ownership</string>
+    <string name="device_health_admin_active">Administration permission</string>
+    <string name="device_health_vpn_permission">VPN permission</string>
+    <string name="device_health_vpn_always_on">Always-on VPN</string>
+    <string name="device_health_vpn_active">Active VPN connection</string>
+    <string name="device_health_device_admin">Device administration</string>
+    <string name="device_health_vpn">VPN status</string>
+    <string name="device_health_active_protections">Active protections</string>
+    <string name="device_health_no_active_protections">No protections are active.</string>
+    <string name="device_health_needs_attention">Needs attention</string>
+    <string name="device_health_summary_ok">Device is healthy and protected</string>
+    <string name="device_health_summary_attention">Some device settings need attention</string>
+    <string name="device_health_status_active">Active</string>
+    <string name="device_health_status_inactive">Inactive</string>
+    <string name="device_health_status_unknown">Unknown</string>
+    <string name="device_health_status_check_failed">Check failed</string>
+    <string name="settings_description_toggle_position">Choose which side displays setting controls.</string>
+    <string name="settings_description_use_checkbox">Display checkboxes instead of switches.</string>
+    <string name="settings_description_show_contact_email">Show the email contact link in the app.</string>
+    <string name="settings_description_show_boot_toast">Show a brief message after the device starts.</string>
+    <string name="settings_description_manage_kiosk">Configure kiosk apps, appearance, and restrictions.</string>
+    <string name="settings_description_update_channel">Choose between stable and early update channels.</string>
+    <string name="settings_description_frp">Manage Google accounts allowed after a reset.</string>
+    <string name="settings_description_change_password">Update the Mafteach administration password.</string>
+    <string name="settings_description_disable_updates">Prevent automatic and manual app updates.</string>
+    <string name="settings_description_lock_settings">Permanently block future access to settings.</string>
+    <string name="settings_description_removal_options">Remove protections or transfer ownership before removal.</string>
+    <string name="settings_section_favorites">Favorites</string>
+    <string name="settings_section_active">Active</string>
+    <string name="settings_unsaved_changes">Unsaved changes: %1$d</string>
+    <string name="settings_button_undo">Undo last change</string>
+    <string name="settings_add_favorite">Add to favorites</string>
+    <string name="settings_remove_favorite">Remove from favorites</string>
+    <string name="settings_expand_category">Expand category</string>
+    <string name="settings_collapse_category">Collapse category</string>
+    <string name="settings_error_save_failed">Settings could not be saved. Your changes remain available to edit.</string>
+
+    <!-- Installed-app-only mini store -->
+    <string name="mini_store_dashboard_button">Manage and update apps</string>
+    <string name="mini_store_title">App Center</string>
+    <string name="mini_store_header_title">Smart, secure management</string>
+    <string name="mini_store_header_subtitle">Only apps that have an update.</string>
+    <string name="mini_store_summary">%1$d apps • %2$d updates available</string>
+    <string name="mini_store_installed_only">Installed apps only</string>
+    <string name="mini_store_installed_only_description">Update or remove existing user apps. System apps are shown for updates and protected from removal.</string>
+    <string name="mini_store_search_hint">Search by app or package name</string>
+    <string name="mini_store_clear_search">Clear search</string>
+    <string name="mini_store_filter_all">All (%1$d)</string>
+    <string name="mini_store_filter_user">User (%1$d)</string>
+    <string name="mini_store_filter_system">System (%1$d)</string>
+    <string name="mini_store_system_badge">System</string>
+    <string name="mini_store_preferred_badge">Preferred</string>
+    <string name="mini_store_system_protected">System app — it can be updated but not removed</string>
+    <string name="mini_store_device_protected">Protected app or currently used by the system</string>
+    <string name="mini_store_blacklist">Blacklist</string>
+    <string name="mini_store_blacklist_title">Manage blacklist</string>
+    <string name="mini_store_refresh">Check for updates</string>
+    <string name="mini_store_waiting_for_access">Waiting for administrator password verification…</string>
+    <string name="mini_store_update_all">Update all (%1$d)</string>
+    <string name="mini_store_source_warning">Update sources were checked only partially: %1$s. Apps that were not checked are not incorrectly marked as current.</string>
+    <string name="mini_store_source_checking">Checking the signed catalog and the authorized Google Play source…</string>
+    <string name="mini_store_source_checking_catalog">Checking the secure update catalog…</string>
+    <string name="mini_store_source_checked">Updates were checked using the authorized Google Play source and signed catalog</string>
+    <string name="mini_store_source_catalog_only">Updates were checked using the secure catalog; Google Play is not configured</string>
+    <string name="mini_store_source_catalog_fallback">The secure catalog was checked; the authorized Google Play source is unavailable</string>
+    <string name="mini_store_source_play_only">The authorized Google Play source was checked; the secure catalog is unavailable</string>
+    <string name="mini_store_source_unavailable">No update source completed successfully</string>
+    <string name="mini_store_source_not_checked">The authorized Google Play source was not checked</string>
+    <string name="mini_store_source_google_play">Google Play</string>
+    <string name="mini_store_source_signed_catalog">Secure catalog</string>
+    <string name="mini_store_play_not_configured">The Google Play source is not configured in this build</string>
+    <string name="mini_store_play_auth_forbidden">The authorized sign-in service rejected the Google Play authentication request.</string>
+    <string name="mini_store_play_auth_rate_limited">The authorized sign-in service temporarily rate-limited requests.</string>
+    <string name="mini_store_play_auth_failed">Anonymous Google Play sign-in failed (HTTP %1$d).</string>
+    <string name="mini_store_no_updates">No updates are available right now.</string>
+    <string name="mini_store_no_filtered_results">No apps match your search or selected filter.</string>
+    <string name="mini_store_installed_version">Installed: %1$s</string>
+    <string name="mini_store_available_version">Update available: %1$s</string>
+    <string name="mini_store_available_version_with_source">Update available: %1$s • %2$s</string>
+    <string name="mini_store_stage_resolving">Preparing secure update files…</string>
+    <string name="mini_store_stage_downloading">Downloading update files…</string>
+    <string name="mini_store_stage_verifying">Verifying size, SHA-256, package, and signatures…</string>
+    <string name="mini_store_stage_installing">Installing all update components atomically…</string>
+    <string name="mini_store_download_progress">%1$d%% complete</string>
+    <string name="mini_store_update">Update</string>
+    <string name="mini_store_no_update">No update</string>
+    <string name="mini_store_no_managed_update">No managed update</string>
+    <string name="mini_store_not_checked">Not checked</string>
+    <string name="mini_store_uninstall">Uninstall</string>
+    <string name="mini_store_uninstall_title">Uninstall app</string>
+    <string name="mini_store_uninstall_message">Uninstall %1$s from this device? Mafteach and firewall rules will be preserved.</string>
+    <string name="settings_item_mini_store_password">Require password for mini store</string>
+    <string name="settings_description_mini_store_password">When enabled, managing and updating installed apps requires the Mafteach administrator password.</string>
 </resources>

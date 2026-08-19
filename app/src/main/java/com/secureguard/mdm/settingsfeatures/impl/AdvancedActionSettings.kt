@@ -7,6 +7,7 @@ import com.secureguard.mdm.ui.navigation.Routes
 object UpdateChannelAction : ActionSetting {
     override val id: String = "action_update_channel"
     override val titleRes: Int = R.string.update_channel_button
+    override val descriptionRes: Int = R.string.settings_description_update_channel
     override val iconRes: Int = R.drawable.ic_system_update
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }
@@ -14,6 +15,7 @@ object UpdateChannelAction : ActionSetting {
 object NavigateToFrpSetting : NavigationalSetting {
     override val id: String = "navigate_frp_settings"
     override val titleRes: Int = R.string.settings_item_frp
+    override val descriptionRes: Int = R.string.settings_description_frp
     override val iconRes: Int = R.drawable.ic_frp_shield
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
     override val route: String = Routes.FRP_SETTINGS
@@ -22,6 +24,7 @@ object NavigateToFrpSetting : NavigationalSetting {
 object NavigateToChangePasswordSetting : NavigationalSetting {
     override val id: String = "navigate_change_password"
     override val titleRes: Int = R.string.settings_item_change_password
+    override val descriptionRes: Int = R.string.settings_description_change_password
     override val iconRes: Int = R.drawable.ic_key
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
     override val route: String = Routes.CHANGE_PASSWORD
@@ -30,6 +33,7 @@ object NavigateToChangePasswordSetting : NavigationalSetting {
 object ToggleUpdatesSetting : ToggleSetting {
     override val id: String = "toggle_all_updates"
     override val titleRes: Int = R.string.settings_item_disable_all_updates
+    override val descriptionRes: Int = R.string.settings_description_disable_updates
     override val iconRes: Int = 0 // No specific icon for this toggle
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }
@@ -37,6 +41,7 @@ object ToggleUpdatesSetting : ToggleSetting {
 object LockSettingsAction : DestructiveActionSetting {
     override val id: String = "action_lock_settings"
     override val titleRes: Int = R.string.settings_item_lock_settings
+    override val descriptionRes: Int = R.string.settings_description_lock_settings
     override val iconRes: Int = R.drawable.ic_remove_protection
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }
@@ -44,6 +49,7 @@ object LockSettingsAction : DestructiveActionSetting {
 object RemovalOptionsAction : DestructiveActionSetting {
     override val id: String = "action_removal_options"
     override val titleRes: Int = R.string.settings_item_removal_options
+    override val descriptionRes: Int = R.string.settings_description_removal_options
     override val iconRes: Int = R.drawable.ic_uninstall_off
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS
 }

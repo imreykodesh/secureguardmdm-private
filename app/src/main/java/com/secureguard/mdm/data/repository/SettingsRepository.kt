@@ -30,6 +30,8 @@ interface SettingsRepository {
     suspend fun allowManualUpdateWhenLocked(): Boolean
     suspend fun isShowBootToastEnabled(): Boolean
     suspend fun setShowBootToastEnabled(isEnabled: Boolean)
+    suspend fun getFavoriteSettingsKeys(): Set<String>
+    suspend fun setFavoriteSettingsKeys(keys: Set<String>)
 
 
     // --- פעולות FRP ---

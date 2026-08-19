@@ -1,41 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base colors for the original app theme (Compose) -->
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
+    <!-- Legacy base colors. Kept so existing references stay valid, but the values
+         are turquoise now instead of purple. -->
+    <color name="purple_200">#FF80DEEA</color>
+    <color name="purple_500">#FF00ACC1</color>
+    <color name="purple_700">#FF00838F</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Material 3 Kiosk Theme Colors -->
-    <color name="md_theme_primary">#B71C1C</color>
+    <!-- Brand turquoise -->
+    <color name="brand_turquoise">#00838F</color>
+    <color name="brand_turquoise_light">#4DD0E1</color>
+    <color name="brand_turquoise_dark">#005662</color>
+
+    <!-- Material 3 Kiosk Theme Colors (turquoise) -->
+    <color name="md_theme_primary">#00838F</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
-    <color name="md_theme_primaryContainer">#EADDFF</color>
-    <color name="md_theme_onPrimaryContainer">#21005D</color>
-    <color name="md_theme_secondary">#625B71</color>
+    <color name="md_theme_primaryContainer">#B2EBF2</color>
+    <color name="md_theme_onPrimaryContainer">#00363D</color>
+    <color name="md_theme_secondary">#00ACC1</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
-    <color name="md_theme_secondaryContainer">#E8DEF8</color>
-    <color name="md_theme_onSecondaryContainer">#1D192B</color>
-    <color name="md_theme_tertiary">#7D5260</color>
+    <color name="md_theme_secondaryContainer">#CCF0F4</color>
+    <color name="md_theme_onSecondaryContainer">#04353B</color>
+    <color name="md_theme_tertiary">#00695C</color>
     <color name="md_theme_onTertiary">#FFFFFF</color>
-    <color name="md_theme_tertiaryContainer">#FFD8E4</color>
-    <color name="md_theme_onTertiaryContainer">#31111D</color>
+    <color name="md_theme_tertiaryContainer">#B9EDE4</color>
+    <color name="md_theme_onTertiaryContainer">#00201B</color>
     <color name="md_theme_error">#B3261E</color>
     <color name="md_theme_onError">#FFFFFF</color>
     <color name="md_theme_errorContainer">#F9DEDC</color>
     <color name="md_theme_onErrorContainer">#410E0B</color>
-    <color name="md_theme_background">#FFFBFE</color>
-    <color name="md_theme_onBackground">#1C1B1F</color>
-    <color name="md_theme_surface">#FFFBFE</color>
-    <color name="md_theme_onSurface">#1C1B1F</color>
-    <color name="md_theme_surfaceVariant">#E7E0EC</color>
-    <color name="md_theme_onSurfaceVariant">#49454F</color>
-    <color name="md_theme_outline">#79747E</color>
+    <color name="md_theme_background">#F6FDFD</color>
+    <color name="md_theme_onBackground">#10292B</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_onSurface">#10292B</color>
+    <color name="md_theme_surfaceVariant">#DBEDEF</color>
+    <color name="md_theme_onSurfaceVariant">#3E4C4F</color>
+    <color name="md_theme_outline">#6E8083</color>
     <color name="md_theme_shadow">#000000</color>
-    <color name="md_theme_inverseSurface">#313033</color>
-    <color name="md_theme_inverseOnSurface">#F4EFF4</color>
-    <color name="md_theme_inversePrimary">#D0BCFF</color>
-    <color name="md_theme_surfaceTint">#B71C1C</color>
+    <color name="md_theme_inverseSurface">#17383B</color>
+    <color name="md_theme_inverseOnSurface">#EAF7F8</color>
+    <color name="md_theme_inversePrimary">#4DD0E1</color>
+    <color name="md_theme_surfaceTint">#00838F</color>
 </resources>

@@ -1,5 +1,6 @@
 package com.secureguard.mdm.ui.screens.settings
 
+import com.secureguard.mdm.R
 import com.secureguard.mdm.features.api.ProtectionFeature
 import com.secureguard.mdm.settingsfeatures.api.SettingCategory
 import com.secureguard.mdm.settingsfeatures.api.SettingsFeature
@@ -27,6 +28,29 @@ data class SettingItemModel(
     val requiredApi: Int = 0
 )
 
+object FavoriteKey {
+    private const val SETTING_PREFIX = "setting:"
+    private const val PROTECTION_PREFIX = "protection:"
+
+    fun setting(id: String): String = "$SETTING_PREFIX$id"
+    fun protection(id: String): String = "$PROTECTION_PREFIX$id"
+}
+
+internal fun modularCategoryKey(category: SettingCategory): String =
+    "modular_category:${category.name}"
+
+internal fun protectionCategoryKey(category: ProtectionCategoryToggle): String = when (category.titleResId) {
+    R.string.category_device_management -> "protection_category:device_management"
+    R.string.category_hardware -> "protection_category:hardware"
+    R.string.category_network -> "protection_category:network"
+    R.string.category_apps -> "protection_category:apps"
+    R.string.category_vpn -> "protection_category:vpn"
+    R.string.category_calls_sms -> "protection_category:calls_sms"
+    R.string.category_ui -> "protection_category:ui"
+    R.string.category_advanced -> "protection_category:advanced"
+    else -> "protection_category:${category.titleResId}"
+}
+
 data class SettingsUiState(
     // State for the main protection features
     val protectionCategoryToggles: List<ProtectionCategoryToggle> = emptyList(),
@@ -34,6 +58,11 @@ data class SettingsUiState(
     // State for the new modular settings items, grouped by category
     val settingItemsByCategory: Map<SettingCategory, List<SettingItemModel>> = emptyMap(),
 
+    val favoriteKeys: Set<String> = emptySet(),
+    val collapsedCategoryKeys: Set<String> = emptySet(),
+    val hasUnsavedChanges: Boolean = false,
+    val unsavedChangeCount: Int = 0,
+    val canUndo: Boolean = false,
     val isLoading: Boolean = true,
     val snackbarMessage: String? = null,
     val isAutoUpdateEnabled: Boolean = true // Kept for the main save logic
@@ -46,6 +75,13 @@ sealed class SettingsEvent {
 
     // Generic events for the new settings system
     data class OnToggleSettingChanged(val settingId: String, val isChecked: Boolean) : SettingsEvent()
+    data class OnFavoriteToggled(val favoriteKey: String) : SettingsEvent()
+    data class OnCategoryCollapsedToggled(val categoryKey: String) : SettingsEvent()
+    data class OnAllCategoriesCollapsedChanged(
+        val categoryKeys: Set<String>,
+        val collapsed: Boolean
+    ) : SettingsEvent()
+    object OnUndoClick : SettingsEvent()
     data class OnActionSettingClicked(val settingId: String) : SettingsEvent()
     data class OnLockSettingsConfirmed(val allowManualUpdate: Boolean) : SettingsEvent()
 

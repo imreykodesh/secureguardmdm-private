@@ -6,6 +6,8 @@ import com.secureguard.mdm.firewall.data.ConnectionHistoryEntity
 import com.secureguard.mdm.firewall.data.FirewallAppPolicyEntity
 import com.secureguard.mdm.firewall.data.FirewallDao
 import com.secureguard.mdm.firewall.data.FirewallRuleEntity
+import com.secureguard.mdm.ministore.data.MiniStoreUpdateCheckDao
+import com.secureguard.mdm.ministore.data.MiniStoreUpdateCheckEntity
 
 /**
  * הקלאס הראשי המייצג את מסד הנתונים של האפליקציה.
@@ -20,8 +22,9 @@ import com.secureguard.mdm.firewall.data.FirewallRuleEntity
         FirewallAppPolicyEntity::class,
         FirewallRuleEntity::class,
         ConnectionHistoryEntity::class,
+        MiniStoreUpdateCheckEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,4 +36,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blockedAppCacheDao(): BlockedAppCacheDao
 
     abstract fun firewallDao(): FirewallDao
+
+    abstract fun miniStoreUpdateCheckDao(): MiniStoreUpdateCheckDao
 }

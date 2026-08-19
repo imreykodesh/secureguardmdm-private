@@ -12,6 +12,8 @@ interface FirewallPolicyRepository {
     suspend fun loadSnapshot(): FirewallRuleSnapshot
     suspend fun selectedPackageNames(): Set<String>
     suspend fun replaceSelectedPackages(packageNames: Set<String>)
+    suspend fun ensurePackageForCapture(packageName: String)
+    suspend fun upsertSimpleBlockRule(rule: FirewallRule): Long
     suspend fun updatePolicyMode(packageName: String, mode: FirewallPolicyMode)
     suspend fun updateTransportOptions(packageName: String, blockQuic: Boolean, blockDot: Boolean)
     suspend fun upsertRule(rule: FirewallRule): Long

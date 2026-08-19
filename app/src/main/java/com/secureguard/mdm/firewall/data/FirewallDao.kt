@@ -101,6 +101,64 @@ interface FirewallDao {
     suspend fun trimHistory(maximumRecords: Int)
 
     @Transaction
+    suspend fun ensurePackageForCapture(packageName: String, now: Long) {
+        val existing = getPolicies().firstOrNull { it.packageName == packageName }
+        val captureMode = when (existing?.policyMode) {
+            null, "DISABLED" -> "MONITOR_ONLY"
+            else -> existing.policyMode
+        }
+        upsertPolicy(
+            existing?.copy(
+                policyMode = captureMode,
+                enabled = true,
+                updatedAt = now,
+            ) ?: FirewallAppPolicyEntity(
+                packageName = packageName,
+                policyMode = captureMode,
+                blockQuic = false,
+                blockDot = false,
+                enabled = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    @Transaction
+    suspend fun upsertSimpleBlockRule(rule: FirewallRuleEntity, now: Long): Long {
+        val existingPolicy = getPolicies().firstOrNull { it.packageName == rule.packageName }
+        val effectiveMode = when (existingPolicy?.policyMode) {
+            null, "MONITOR_ONLY", "DISABLED" -> "BLOCKLIST"
+            else -> existingPolicy.policyMode
+        }
+        upsertPolicy(
+            existingPolicy?.copy(
+                policyMode = effectiveMode,
+                enabled = true,
+                updatedAt = now,
+            ) ?: FirewallAppPolicyEntity(
+                packageName = rule.packageName,
+                policyMode = effectiveMode,
+                blockQuic = false,
+                blockDot = false,
+                enabled = true,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        val existingRuleId = findRuleId(
+            packageName = rule.packageName,
+            ruleType = rule.ruleType,
+            action = rule.action,
+            value = rule.value,
+            protocol = rule.protocol,
+            portStart = rule.portStart,
+            portEnd = rule.portEnd,
+        )
+        return upsertRule(rule.copy(id = existingRuleId ?: rule.id, updatedAt = now))
+    }
+
+    @Transaction
     suspend fun replaceSelectedPackages(packageNames: Set<String>, now: Long) {
         val existingPolicies = getPolicies().associateBy { it.packageName }
         existingPolicies.keys.filterNot(packageNames::contains).forEach { packageName ->

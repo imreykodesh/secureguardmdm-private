@@ -3,12 +3,14 @@ package com.secureguard.mdm.ui.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,13 +36,14 @@ import com.secureguard.mdm.R
 fun PasswordPromptDialog(
     passwordError: String?,
     onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    enabled: Boolean = true,
 ) {
     var passwordValue by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (enabled) onDismiss() },
         title = { Text(text = stringResource(id = R.string.dialog_title_enter_password)) },
         text = {
             Column {
@@ -49,37 +52,56 @@ fun PasswordPromptDialog(
                 OutlinedTextField(
                     value = passwordValue,
                     onValueChange = { passwordValue = it },
+                    enabled = enabled,
                     label = { Text(stringResource(id = R.string.setup_password_label)) },
                     singleLine = true,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = passwordError != null,
                     trailingIcon = {
-                        val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        val image = if (passwordVisible) {
+                            Icons.Filled.Visibility
+                        } else {
+                            Icons.Filled.VisibilityOff
+                        }
                         val description = if (passwordVisible) "הסתר סיסמה" else "הצג סיסמה"
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        IconButton(
+                            onClick = { passwordVisible = !passwordVisible },
+                            enabled = enabled,
+                        ) {
                             Icon(imageVector = image, contentDescription = description)
                         }
-                    }
+                    },
                 )
                 passwordError?.let {
                     Text(
                         text = it,
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(passwordValue) }) {
-                Text(stringResource(id = R.string.dialog_button_confirm))
+            Button(
+                onClick = { onConfirm(passwordValue) },
+                enabled = enabled,
+            ) {
+                if (enabled) {
+                    Text(stringResource(id = R.string.dialog_button_confirm))
+                } else {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = enabled) {
                 Text(stringResource(id = R.string.dialog_button_cancel))
             }
-        }
+        },
     )
 }

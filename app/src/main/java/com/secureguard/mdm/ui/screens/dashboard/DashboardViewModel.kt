@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
 import android.content.pm.PackageInstaller
 import android.net.ConnectivityManager
 import android.net.Uri
@@ -20,6 +21,7 @@ import com.secureguard.mdm.features.registry.FeatureRegistry
 import com.secureguard.mdm.receivers.InstallReceiver
 import com.secureguard.mdm.security.PasswordManager
 import com.secureguard.mdm.services.NetfreeMonitorService
+import com.secureguard.mdm.utils.InstallRestrictionGuard
 import com.secureguard.mdm.utils.SecureUpdateHelper
 import com.secureguard.mdm.utils.UpdateVerificationResult
 import com.secureguard.mdm.utils.update.DownloadProgress
@@ -28,6 +30,8 @@ import com.secureguard.mdm.utils.update.UpdateManager
 import com.secureguard.mdm.utils.update.UpdateResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -36,7 +40,11 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
+
+private const val TAG = "DashboardViewModel"
+private const val MANUAL_INSTALL_FILE_NAME = "manual_install.apk"
 
 enum class UpdateDialogState {
     HIDDEN,
@@ -189,6 +197,7 @@ class DashboardViewModel @Inject constructor(
 
     private fun checkForUpdates(isAutoCheck: Boolean) {
         viewModelScope.launch {
+            if (!isAutoCheck && !_uiState.value.isManualUpdateEnabled) return@launch
             if (!isAutoCheck || settingsRepository.isAutoUpdateCheckEnabled()) {
                 if (!isAutoCheck) {
                     _sideEffect.emit(DashboardSideEffect.ToastMessage(context.getString(R.string.update_check_checking)))
@@ -221,15 +230,25 @@ class DashboardViewModel @Inject constructor(
                 if (!_uiState.value.isManualUpdateEnabled) return
                 event.uri?.let { handleSecureUpdate(it) }
             }
-            DashboardEvent.OnStartUpdateDownload -> startUpdateDownload()
-            DashboardEvent.OnDismissUpdateDialog -> _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
-            DashboardEvent.OnManualUpdateCheck -> checkForUpdates(isAutoCheck = false)
+            DashboardEvent.OnStartUpdateDownload -> {
+                if (!_uiState.value.isManualUpdateEnabled) return
+                startUpdateDownload()
+            }
+            DashboardEvent.OnDismissUpdateDialog -> {
+                if (_uiState.value.updateDialogState == UpdateDialogState.DOWNLOADING) return
+                _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
+            }
+            DashboardEvent.OnManualUpdateCheck -> {
+                if (!_uiState.value.isManualUpdateEnabled) return
+                checkForUpdates(isAutoCheck = false)
+            }
             DashboardEvent.OnNetfreeRecheckClicked -> recheckNetfreeConnection()
             DashboardEvent.OnNetfreeRestartServiceClicked -> restartNetfreeService()
         }
     }
 
     private fun startUpdateDownload() {
+        if (!_uiState.value.isManualUpdateEnabled) return
         val updateInfo = _uiState.value.availableUpdateInfo ?: return
         _uiState.update { it.copy(updateDialogState = UpdateDialogState.DOWNLOADING, downloadProgress = DownloadProgress.Downloading(0)) }
 
@@ -246,7 +265,8 @@ class DashboardViewModel @Inject constructor(
                 .collect { progress ->
                     when (progress) {
                         is DownloadProgress.Completed -> {
-                            // Installation completed, close dialog
+                            // The verified install session was committed. Android reports
+                            // the final self-update result through InstallReceiver.
                             _uiState.update { it.copy(updateDialogState = UpdateDialogState.HIDDEN) }
                         }
                         is DownloadProgress.Error -> {
@@ -280,31 +300,79 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Manual APK install. This path is update-only: the APK must belong to a
+     * package that is already installed and must carry a higher version code.
+     *
+     * The chosen file is staged into private storage first and every check, plus
+     * the session itself, works on that copy. Reading the picker Uri twice would
+     * leave a gap in which the content behind it could be swapped after
+     * verification passed.
+     */
     private fun installPackage(apkUri: Uri) {
         viewModelScope.launch {
+            val staged = File(context.cacheDir, MANUAL_INSTALL_FILE_NAME)
             try {
-                val packageInstaller = context.packageManager.packageInstaller
-                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-                val sessionId = packageInstaller.createSession(params)
-                val session = packageInstaller.openSession(sessionId)
-                context.contentResolver.openInputStream(apkUri)?.use { apkStream ->
-                    session.openWrite("AbloqUpdate", 0, -1).use { sessionStream ->
-                        apkStream.copyTo(sessionStream)
-                        session.fsync(sessionStream)
+                withContext(Dispatchers.IO) {
+                    staged.delete()
+                    val copied = context.contentResolver.openInputStream(apkUri)?.use { input ->
+                        staged.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    requireNotNull(copied) { context.getString(R.string.error_reading_apk) }
+                }
+
+                val archive = context.packageManager.getPackageArchiveInfo(staged.absolutePath, 0)
+                    ?: error(context.getString(R.string.error_reading_apk))
+                val packageName = archive.packageName
+
+                val installed = runCatching {
+                    context.packageManager.getPackageInfo(packageName, 0)
+                }.getOrNull()
+                if (installed == null) {
+                    _sideEffect.emit(DashboardSideEffect.ShowAppNotInstalledDialog)
+                    return@launch
+                }
+                require(versionCodeOf(archive) > versionCodeOf(installed)) {
+                    context.getString(R.string.error_apk_not_newer)
+                }
+
+                withContext(Dispatchers.IO) {
+                    InstallRestrictionGuard.withInstallAllowed(context) {
+                        val packageInstaller = context.packageManager.packageInstaller
+                        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                            // Pins the session to the package that was verified.
+                            setAppPackageName(packageName)
+                            setSize(staged.length())
+                        }
+                        val sessionId = packageInstaller.createSession(params)
+                        val session = packageInstaller.openSession(sessionId)
+                        staged.inputStream().use { apkStream ->
+                            session.openWrite("AbloqUpdate", 0, staged.length()).use { sessionStream ->
+                                apkStream.copyTo(sessionStream)
+                                session.fsync(sessionStream)
+                            }
+                        }
+                        val intent = Intent(context, InstallReceiver::class.java)
+                        val pendingIntent = PendingIntent.getBroadcast(
+                            context, sessionId, intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+                        )
+                        session.commit(pendingIntent.intentSender)
+                        session.close()
                     }
                 }
-                val intent = Intent(context, InstallReceiver::class.java)
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context, sessionId, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-                )
-                session.commit(pendingIntent.intentSender)
-                session.close()
             } catch (e: Exception) {
+                Log.w(TAG, "manual install failed", e)
                 _sideEffect.emit(DashboardSideEffect.ToastMessage(context.getString(R.string.error_installing_update, e.localizedMessage)))
+            } finally {
+                withContext(Dispatchers.IO) { staged.delete() }
             }
         }
     }
+
+    @Suppress("DEPRECATION")
+    private fun versionCodeOf(info: PackageInfo): Long =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
 
     private fun verifyPasswordAndNavigate(password: String) {
         viewModelScope.launch {

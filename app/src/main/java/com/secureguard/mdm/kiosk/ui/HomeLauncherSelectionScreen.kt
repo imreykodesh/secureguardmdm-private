@@ -52,7 +52,7 @@ fun HomeLauncherSelectionScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "אייבלוק מוגדר כמסך הבית",
+                    text = "מפתח מוגדר כמסך הבית",
                     style = MaterialTheme.typography.headlineMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onBackground
@@ -91,7 +91,7 @@ fun HomeLauncherSelectionScreen(
                 TextButton(
                     onClick = { onDismiss() }
                 ) {
-                    Text("המשך לדשבורד של אייבלוק", color = MaterialTheme.colorScheme.primary)
+                    Text("המשך לדשבורד של מפתח", color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

@@ -1,15 +1,14 @@
 package com.secureguard.mdm.utils.update
 
 /**
- * Data class to hold information about an available update.
- * @param versionCode The version code of the available update.
- * @param versionName The version name of the available update.
- * @param changelog The description of changes for the new version.
- * @param downloadUrl The direct URL to download the APK file.
+ * Immutable metadata for a self-update published by the Mafteach update service.
+ * versionCode is the only field used to decide whether an update is newer.
  */
 data class UpdateInfo(
-    val versionCode: Int,
-    val versionName: String, // Can be derived or part of the info file
+    val versionCode: Long,
+    val versionName: String,
     val changelog: String,
-    val downloadUrl: String
+    val downloadUrl: String,
+    val apkSize: Long,
+    val apkSha256: String,
 )

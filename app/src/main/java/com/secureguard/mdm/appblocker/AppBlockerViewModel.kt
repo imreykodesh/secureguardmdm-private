@@ -10,6 +10,7 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -19,9 +20,15 @@ import com.secureguard.mdm.R
 import com.secureguard.mdm.SecureGuardDeviceAdminReceiver
 import com.secureguard.mdm.data.db.BlockedAppCache
 import com.secureguard.mdm.data.repository.SettingsRepository
+import com.secureguard.mdm.ministore.domain.MiniStoreAccessGate
+import com.secureguard.mdm.ministore.install.MiniStorePackageOperator
+import com.secureguard.mdm.security.PasswordManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -33,6 +40,7 @@ import javax.inject.Inject
 
 private const val TAG = "AppBlockerViewModel"
 private const val OWN_PACKAGE = "com.secureguard.mdm"
+private const val APP_LOAD_CHUNK = 40
 
 // Critical system apps that should not be blocked as they may cause device instability
 private val CRITICAL_SYSTEM_PACKAGES = setOf(
@@ -48,7 +56,10 @@ private val CRITICAL_SYSTEM_PACKAGES = setOf(
 class AppBlockerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
-    private val dpm: DevicePolicyManager
+    private val dpm: DevicePolicyManager,
+    private val passwordManager: PasswordManager,
+    private val accessGate: MiniStoreAccessGate,
+    private val packageOperator: MiniStorePackageOperator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppBlockerUiState())
@@ -62,7 +73,46 @@ class AppBlockerViewModel @Inject constructor(
     private val iconsDir by lazy { File(context.filesDir, "app_icons").apply { mkdirs() } }
 
     init {
-        loadAllData()
+        checkAccess()
+    }
+
+    /**
+     * Blocking, suspending and removing apps are policy decisions, so this
+     * screen always asks for the management password. An already open Mini Store
+     * authorisation window counts, so the user is not asked twice in a row.
+     */
+    private fun checkAccess() {
+        viewModelScope.launch {
+            val privileged = accessGate.isPrivileged()
+            val passwordSet = passwordManager.isPasswordSet()
+            val granted = privileged || !passwordSet
+            Log.i(TAG, "access check: privileged=$privileged passwordSet=$passwordSet granted=$granted")
+            _uiState.update { it.copy(accessGranted = granted, isLoading = granted) }
+            if (granted) loadAllData()
+        }
+    }
+
+    private fun submitPassword(password: String) {
+        if (_uiState.value.isAuthenticating) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAuthenticating = true, passwordError = null) }
+            val accepted = passwordManager.verifyPassword(password)
+            Log.i(TAG, "password submitted: accepted=$accepted")
+            if (accepted) {
+                accessGate.grant()
+                _uiState.update {
+                    it.copy(isAuthenticating = false, accessGranted = true, passwordError = null)
+                }
+                loadAllData()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isAuthenticating = false,
+                        passwordError = context.getString(R.string.dialog_error_wrong_password),
+                    )
+                }
+            }
+        }
     }
 
     fun onEvent(event: AppBlockerEvent) {
@@ -79,19 +129,136 @@ class AppBlockerViewModel @Inject constructor(
             is AppBlockerEvent.OnSearchQueryChanged -> onSearchQueryChanged(event.query)
             is AppBlockerEvent.OnDismissPasswordPrompt -> { /* No longer needed */ }
             is AppBlockerEvent.OnDismissCriticalAppsWarning -> dismissCriticalAppsWarning()
+            is AppBlockerEvent.OnStatusFilterChanged -> onStatusFilterChanged(event.filter)
+            is AppBlockerEvent.OnSubmitPassword -> submitPassword(event.password)
+            is AppBlockerEvent.OnRequestUninstall -> requestUninstall(event.app)
+            is AppBlockerEvent.OnConfirmUninstall -> confirmUninstall()
+            is AppBlockerEvent.OnCancelUninstall -> _uiState.update { it.copy(pendingUninstall = null) }
+            is AppBlockerEvent.OnClearMessage -> _uiState.update { it.copy(message = null) }
         }
     }
 
+    /**
+     * One pass over the package manager for all three lists.
+     *
+     * Loading each list separately meant three `queryIntentActivities` calls and
+     * a second round of label and icon decoding for every blocked or suspended
+     * app, which is what made the screen slow to appear on a device with a few
+     * hundred packages. Labels and icons are now decoded in parallel, and the
+     * blocked and suspended lists are derived from the same snapshot; the
+     * package manager is consulted again only for apps that are no longer
+     * installed and exist in the cache alone.
+     */
     fun loadAllData() {
+        if (!_uiState.value.accessGranted) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, searchQuery = "") }
+            _uiState.update { it.copy(isLoading = true) }
+            val started = SystemClock.elapsedRealtime()
             allAppsMasterList = getInstalledApps()
-            allBlockedAppsMasterList = getBlockedAppsFromCache()
-            allSuspendedAppsMasterList = getSuspendedAppsFromCache()
             applyFilter()
+            // The list is published before the derived lists are built, so the
+            // user is not kept waiting on work they cannot see yet.
+            _uiState.update { it.copy(isLoading = false) }
+
+            val installedByPackage = allAppsMasterList.associateBy { it.packageName }
+            allBlockedAppsMasterList = derivedList(
+                packages = settingsRepository.getBlockedAppPackages(),
+                installedByPackage = installedByPackage,
+                blocked = true,
+            )
+            allSuspendedAppsMasterList = derivedList(
+                packages = settingsRepository.getSuspendedAppPackages(),
+                installedByPackage = installedByPackage,
+                blocked = false,
+            )
             applyBlockedAppsFilter()
             applySuspendedAppsFilter()
-            _uiState.update { it.copy(isLoading = false) }
+            if (_uiState.value.statusFilter != AppStatusFilter.ALL) applyFilter()
+            _uiState.update {
+                it.copy(
+                    blockedCount = allBlockedAppsMasterList.size,
+                    suspendedCount = allSuspendedAppsMasterList.size,
+                )
+            }
+            Log.i(
+                TAG,
+                "loaded ${allAppsMasterList.size} apps in " +
+                    "${SystemClock.elapsedRealtime() - started}ms",
+            )
+        }
+    }
+
+    /**
+     * Blocked and suspended entries for the given packages, reusing what was
+     * already resolved for the installed list.
+     */
+    private suspend fun derivedList(
+        packages: Set<String>,
+        installedByPackage: Map<String, AppInfo>,
+        blocked: Boolean,
+    ): List<AppInfo> {
+        val missing = packages.filter { it !in installedByPackage }
+        val cached = if (missing.isEmpty()) {
+            emptyMap()
+        } else {
+            withContext(Dispatchers.IO) {
+                settingsRepository.getBlockedAppsCache().associateBy { it.packageName }
+            }
+        }
+        return packages.mapNotNull { packageName ->
+            installedByPackage[packageName]?.copy(
+                isBlocked = blocked,
+                isSuspended = !blocked,
+            ) ?: cached[packageName]?.let { entry ->
+                AppInfo(
+                    appName = entry.appName,
+                    packageName = packageName,
+                    icon = loadIconFromFile(entry.iconPath) ?: createDefaultIcon(),
+                    isBlocked = blocked,
+                    isSystemApp = false,
+                    isLauncherApp = false,
+                    isSuspended = !blocked,
+                    isInstalled = false,
+                )
+            }
+        }.sortedBy { it.appName.lowercase() }
+    }
+
+    private fun onStatusFilterChanged(filter: AppStatusFilter) {
+        if (filter == _uiState.value.statusFilter) return
+        _uiState.update {
+            it.copy(
+                statusFilter = filter,
+                selectionForUnblock = emptySet(),
+                selectionForUnsuspend = emptySet(),
+            )
+        }
+        applyFilter()
+    }
+
+    private fun requestUninstall(app: AppInfo) {
+        if (!_uiState.value.accessGranted || !app.isInstalled) return
+        _uiState.update { it.copy(pendingUninstall = app) }
+    }
+
+    /**
+     * Removal reuses the Mini Store operator so the same guards apply: no system
+     * apps, nothing the device depends on, and never A Bloq itself.
+     */
+    private fun confirmUninstall() {
+        val app = _uiState.value.pendingUninstall ?: return
+        _uiState.update { it.copy(pendingUninstall = null, isLoading = true) }
+        viewModelScope.launch {
+            val result = runCatching { packageOperator.uninstall(app.packageName) }
+            val message = result.fold(
+                onSuccess = { "${app.appName} הוסרה" },
+                onFailure = { error ->
+                    Log.w(TAG, "uninstall failed for ${app.packageName}", error)
+                    "ההסרה נכשלה: ${error.message ?: "שגיאה לא ידועה"}"
+                },
+            )
+            _uiState.update { it.copy(message = message, isLoading = false) }
+            loadAllData()
         }
     }
 
@@ -111,11 +278,18 @@ class AppBlockerViewModel @Inject constructor(
 
     private fun applyFilter() {
         val query = _uiState.value.searchQuery.lowercase()
-        var filteredList = when (_uiState.value.currentFilter) {
-            AppFilterType.USER_ONLY -> allAppsMasterList.filter { it.isInstalled && !it.isSystemApp }
-            AppFilterType.ALL_EXCEPT_CORE -> allAppsMasterList.filter { it.isInstalled && !it.packageName.startsWith("com.android.") }
-            AppFilterType.LAUNCHER_ONLY -> allAppsMasterList.filter { it.isLauncherApp }
-            AppFilterType.ALL -> allAppsMasterList.filter { it.isInstalled }
+        // The blocked and suspended views are served from their own master lists
+        // so that apps already uninstalled, or system apps hidden by the source
+        // filter, stay visible and releasable.
+        var filteredList = when (_uiState.value.statusFilter) {
+            AppStatusFilter.BLOCKED -> allBlockedAppsMasterList
+            AppStatusFilter.SUSPENDED -> allSuspendedAppsMasterList
+            AppStatusFilter.ALL -> when (_uiState.value.currentFilter) {
+                AppFilterType.USER_ONLY -> allAppsMasterList.filter { it.isInstalled && !it.isSystemApp }
+                AppFilterType.ALL_EXCEPT_CORE -> allAppsMasterList.filter { it.isInstalled && !it.packageName.startsWith("com.android.") }
+                AppFilterType.LAUNCHER_ONLY -> allAppsMasterList.filter { it.isLauncherApp }
+                AppFilterType.ALL -> allAppsMasterList.filter { it.isInstalled }
+            }
         }
         if (query.isNotBlank()) {
             filteredList = filteredList.filter {
@@ -157,80 +331,32 @@ class AppBlockerViewModel @Inject constructor(
         val allInstalledAppsInfo = pm.getInstalledApplications(PackageManager.GET_META_DATA)
         val blockedAppPackages = settingsRepository.getBlockedAppPackages()
         val suspendedAppPackages = settingsRepository.getSuspendedAppPackages()
-        allInstalledAppsInfo.map { appInfo ->
-            if (appInfo.packageName == OWN_PACKAGE) return@map null
-            AppInfo(
-                appName = appInfo.loadLabel(pm).toString(), packageName = appInfo.packageName,
-                icon = appInfo.loadIcon(pm), isBlocked = blockedAppPackages.contains(appInfo.packageName),
-                isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
-                isLauncherApp = launcherPackages.contains(appInfo.packageName),
-                isSuspended = suspendedAppPackages.contains(appInfo.packageName),
-                isInstalled = true
-            )
-        }.filterNotNull().sortedBy { it.appName.lowercase() }
-    }
-
-    private suspend fun getBlockedAppsFromCache(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val pm = context.packageManager
-        val launcherIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        val launcherPackages = pm.queryIntentActivities(launcherIntent, 0).map { it.activityInfo.packageName }.toSet()
-
-        val blockedPackages = settingsRepository.getBlockedAppPackages()
-        val suspendedPackages = settingsRepository.getSuspendedAppPackages()
-        val cachedApps = settingsRepository.getBlockedAppsCache().associateBy { it.packageName }
-        blockedPackages.mapNotNull { packageName ->
-            try {
-                val appInfo = try {
-                    pm.getApplicationInfo(packageName, 0)
-                } catch (e: Exception) { null }
-
-                val cachedInfo = cachedApps[packageName]
-                AppInfo(
-                    appName = appInfo?.loadLabel(pm)?.toString() ?: cachedInfo?.appName ?: packageName,
-                    packageName = packageName,
-                    icon = cachedInfo?.let { loadIconFromFile(it.iconPath) } ?: appInfo?.loadIcon(pm) ?: createDefaultIcon(),
-                    isBlocked = true,
-                    isSystemApp = appInfo?.let { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false,
-                    isLauncherApp = launcherPackages.contains(packageName),
-                    isSuspended = suspendedPackages.contains(packageName),
-                    isInstalled = appInfo != null
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not fully resolve app info for $packageName", e)
-                null
-            }
-        }.sortedBy { it.appName.lowercase() }
-    }
-
-    private suspend fun getSuspendedAppsFromCache(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val pm = context.packageManager
-        val launcherIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
-        val launcherPackages = pm.queryIntentActivities(launcherIntent, 0).map { it.activityInfo.packageName }.toSet()
-
-        val suspendedPackages = settingsRepository.getSuspendedAppPackages()
-        val cachedApps = settingsRepository.getBlockedAppsCache().associateBy { it.packageName }
-        suspendedPackages.mapNotNull { packageName ->
-            try {
-                val appInfo = try {
-                    pm.getApplicationInfo(packageName, 0)
-                } catch (e: Exception) { null }
-
-                val cachedInfo = cachedApps[packageName]
-                AppInfo(
-                    appName = appInfo?.loadLabel(pm)?.toString() ?: cachedInfo?.appName ?: packageName,
-                    packageName = packageName,
-                    icon = cachedInfo?.let { loadIconFromFile(it.iconPath) } ?: appInfo?.loadIcon(pm) ?: createDefaultIcon(),
-                    isBlocked = false,
-                    isSystemApp = appInfo?.let { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false,
-                    isLauncherApp = launcherPackages.contains(packageName),
-                    isSuspended = true,
-                    isInstalled = appInfo != null
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not fully resolve app info for $packageName", e)
-                null
-            }
-        }.sortedBy { it.appName.lowercase() }
+        // Label and icon decoding is the expensive part, a few milliseconds per
+        // package, so the list is built on several threads instead of one.
+        coroutineScope {
+            allInstalledAppsInfo
+                .filter { it.packageName != OWN_PACKAGE }
+                .chunked(APP_LOAD_CHUNK)
+                .map { chunk ->
+                    async {
+                        chunk.map { appInfo ->
+                            AppInfo(
+                                appName = appInfo.loadLabel(pm).toString(),
+                                packageName = appInfo.packageName,
+                                icon = appInfo.loadIcon(pm),
+                                isBlocked = blockedAppPackages.contains(appInfo.packageName),
+                                isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                                isLauncherApp = launcherPackages.contains(appInfo.packageName),
+                                isSuspended = suspendedAppPackages.contains(appInfo.packageName),
+                                isInstalled = true,
+                            )
+                        }
+                    }
+                }
+                .awaitAll()
+                .flatten()
+                .sortedBy { it.appName.lowercase() }
+        }
     }
 
     private fun onAppSelectionChanged(packageName: String, isBlocked: Boolean) {

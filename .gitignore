@@ -13,3 +13,16 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local operator secrets (Play account, tokens). Never commit or back up.
+/SEC/
+
+# Machine-local IDE, compiler, deployment and Cloudflare state.
+/.idea/
+/.kotlin/
+/.wrangler/
+*.code-workspace
+*.lnk
+
+# Generated installer bundle; release APKs exceed GitHub's per-file limit.
+/dist/

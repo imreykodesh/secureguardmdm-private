@@ -55,10 +55,11 @@ import android.hardware.camera2.CameraManager
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.saveable.rememberSaveable
-private val BackgroundColor = Color(0xFFE8E8EC)
-private val CardColor = Color(0xFFD8D8DC)
-private val TextColor = Color(0xFF1A1A1A)
-private val BottomBarColor = Color(0xFFD0D0D4)
+// גוונים עדינים של טורקיז, במקום האפור הנייטרלי הקודם
+private val BackgroundColor = Color(0xFFE6F4F5)
+private val CardColor = Color(0xFFD3E9EB)
+private val TextColor = Color(0xFF10292B)
+private val BottomBarColor = Color(0xFFC7E2E5)
 private const val TAG_KIOSK_UI = "KioskUi"
 private const val ACTION_WIFI = "wifi"
 private const val ACTION_BLUETOOTH = "bluetooth"

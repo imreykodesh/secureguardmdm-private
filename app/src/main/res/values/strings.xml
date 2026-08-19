@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- app info -->
-    <string name="app_name">A Bloq</string>
-    <string name="app_version_name_for_logic" translatable="false">0.4.6</string>
-    <string name="device_admin_description">מאפשר ל-A Bloq לאכוף מדיניות אבטחה על המכשיר.</string>
-    <string name="app_version">בטא 0.4.5</string>
+    <string name="app_name">מפתח</string>
+    <string name="device_admin_description">מאפשר לאפליקציית מפתח לאכוף מדיניות אבטחה על המכשיר.</string>
     <string name="unofficial_warning_title">אזהרת אבטחה</string>
     <string name="unofficial_warning_message">אפליקציה זו אינה רשמית ונעשו בה שינויים!</string>
 
     <!-- Provisioning Screen -->
     <string name="provisioning_title">נדרשות הרשאות ניהול</string>
-    <string name="provisioning_description">כדי ש-A Bloq תוכל לפעול, עליה להיות מוגדרת כ"בעלת המכשיר" (Device Owner). ניתן לעשות זאת רק במכשיר חדש או מאופס.</string>
+    <string name="provisioning_description">כדי שאפליקציית מפתח תוכל לפעול, עליה להיות מוגדרת כ"בעלת המכשיר" (Device Owner). ניתן לעשות זאת רק במכשיר חדש או מאופס.</string>
     <string name="provisioning_option_adb">אפשרות 1: הפעלה באמצעות ADB (מומלץ)</string>
     <string name="provisioning_adb_instructions">1. התקן את האפליקציה על המכשיר.\n2. הפעל "אפשרויות למפתחים" ו-"ניפוי באגים ב-USB".\n3. חבר את המכשיר למחשב והרץ את הפקודה הבאה:</string>
     <string name="provisioning_adb_command">adb shell dpm set-device-owner com.secureguard.mdm/.SecureGuardDeviceAdminReceiver</string>
@@ -24,7 +22,7 @@
     <string name="provisioning_root_failed">ההפעלה עם Root נכשלה.</string>
 
     <!-- Setup Screen -->
-    <string name="setup_title">ברוכים הבאים ל-A Bloq</string>
+    <string name="setup_title">ברוכים הבאים למפתח</string>
     <string name="setup_description">כדי להתחיל, אנא צור סיסמת ניהול. סיסמה זו תשמש לשינוי הגדרות האבטחה.</string>
     <string name="setup_password_label">סיסמה</string>
     <string name="setup_confirm_password_label">אימות סיסמה</string>
@@ -43,12 +41,18 @@
 
     <!-- Settings Screen -->
     <string name="settings_title">ניהול הגדרות</string>
+    <string name="settings_search_label">חיפוש בהגדרות</string>
+    <string name="settings_search_placeholder">לדוגמה: VPN, אפליקציות או עדכונים</string>
+    <string name="settings_search_clear">נקה חיפוש</string>
+    <string name="settings_search_no_results">לא נמצאו הגדרות מתאימות</string>
+    <string name="settings_collapse_all_categories">כווץ הכול</string>
+    <string name="settings_expand_all_categories">הרחב הכול</string>
     <string name="settings_button_save">שמור שינויים</string>
     <string name="settings_unsupported_device">לא נתמך במכשיר זה</string>
     <string name="settings_unsupported_device_details">דורש אנדרואיד %1$d (%2$s) ומעלה.</string>
     <string name="settings_item_change_password">שנה סיסמת ניהול</string>
-    <string name="settings_item_remove_protection">הסר את A Bloq וההגנות</string>
-    <string name="settings_item_removal_options">אפשרויות הסרה לאייבלוק</string>
+    <string name="settings_item_remove_protection">הסר את מפתח וההגנות</string>
+    <string name="settings_item_removal_options">אפשרויות הסרה למפתח</string>
     <string name="settings_remove_protection_dialog_title">האם אתה בטוח?</string>
     <string name="settings_remove_protection_dialog_message">פעולה זו תסיר את כל ההגנות, תמחק את הרשאות הניהול של האפליקציה ותבקש ממך להסיר את התקנתה. לא ניתן לבטל פעולה זו.</string>
     <string name="settings_item_select_apps_to_block">בחר אפליקציות לחסימה</string>
@@ -214,7 +218,7 @@
     <string name="feature_frp_protection_experimental_tag">(נסיוני)</string>
     <string name="frp_warning_dialog_title">אזהרה: תכונה נסיונית</string>
     <string name="frp_warning_dialog_message">הפעלת הגנת FRP היא פעולה מתקדמת שעלולה, במקרים נדירים או בתצורה שגויה, לנעול את המכשיר לצמיתות ולדרוש התערבות יצרן. האם אתה בטוח שברצונך להמשיך?</string>
-    <string name="contact_email">c51525355@gmail.com</string>
+    <string name="contact_email">imreykodesh@gmail.com</string>
 
     <string name="settings_item_enable_updates">אפשר עדכונים לאפליקציה</string>
     <string name="category_ui_and_behavior">התאמה אישית והתנהגות</string>
@@ -240,7 +244,7 @@
     <string name="update_channel_explanation_title">הסבר</string>
     <string name="update_channel_explanation_message">מומלץ לבחור בערוץ יציב, אך אם אתה מעונין בפיצ\'רים החדשים מיד שהם יוצאים, אתה יכול לבחור בערוץ הPrebuild.</string>
     <string name="settings_item_frp">הגדר FRP מותאם אישית</string>
-    <string name="boot_notification_message">A Bloq הופעל עם הדלקת המכשיר!</string>
+    <string name="boot_notification_message">מפתח הופעל עם הדלקת המכשיר!</string>
     <string name="settings_item_show_boot_toast">הצג התראה בעת הפעלת המכשיר</string>
     <string name="category_kiosk_mode">מצב קיוסק</string>
     <string name="settings_item_manage_kiosk">נהל מצב קיוסק</string>
@@ -323,6 +327,7 @@
     <string name="error_reading_apk">לא ניתן היה לקרוא את קובץ ה-APK.</string>
     <string name="error_reading_apk_generic">שגיאה בקריאת קובץ ה-APK.</string>
     <string name="error_installing_update">שגיאה בהתחלת ההתקנה: %s</string>
+    <string name="error_apk_not_newer">גרסת ה-APK אינה חדשה מהגרסה המותקנת.</string>
     <string name="frp_settings_title">הגדר FRP מותאם אישית</string>
     <string name="frp_settings_description">הוסף חשבונות Google (לפי User ID) שיורשו לבצע איפוס למכשיר. אם רשימה זו ריקה, ייעשה שימוש בחשבון ברירת המחדל.</string>
     <string name="frp_settings_label_user_id">הזן User ID</string>
@@ -336,10 +341,12 @@
     <string name="app_info_version">גרסה:</string>
     <string name="app_info_status">סטטוס:</string>
     <string name="app_info_author">יוצר:</string>
-    <string name="app_info_author_name">יוסי פוליטנסקי</string>
+    <string name="app_info_author_name">יוסי פולי</string>
+    <string name="app_info_upgrade">שדרוג:</string>
+    <string name="app_info_upgrade_name">ביוס אמרי קודש</string>
     <string name="app_info_forum_user">במתמחים טופ:</string>
-    <!--suppress AndroidDomInspection -->
-    <string name="app_info_forum_user_name">@iosi-poli</string>
+    <string name="app_info_forum_user_name">@ביוס</string>
+    <string name="app_info_forum_profile_url" translatable="false" formatted="false">https://mitmachim.top/user/%D7%91%D7%99%D7%95%D7%A1</string>
     <string name="app_info_contact_us">ליצירת קשר:</string>
     <string name="app_info_button_contact_email">צור קשר במייל</string>
     <string name="app_info_button_close">סגור</string>
@@ -362,9 +369,9 @@
     <string name="removal_error_runtime_title">שגיאת זמן ריצה</string>
     <string name="removal_error_unexpected_title">שגיאה לא צפויה</string>
     <string name="settings_desc_more_info">מידע נוסף</string>
-    <string name="removal_options_dialog_title">אפשרויות הסרה לאייבלוק</string>
+    <string name="removal_options_dialog_title">אפשרויות הסרה למפתח</string>
     <string name="removal_options_dialog_message">בחר את האפשרות הרצויה:</string>
-    <string name="removal_options_button_regular">הסרה רגילה של אייבלוק</string>
+    <string name="removal_options_button_regular">הסרה רגילה של מפתח</string>
     <string name="removal_options_button_transfer">העברת בעלות לפני הסרה</string>
     <string name="device_admin_selection_dialog_title">בחר אפליקציית ניהול מכשיר</string>
     <string name="device_admin_selection_dialog_empty">לא נמצאו אפליקציות ניהול מכשיר אחרות במכשיר זה.</string>
@@ -431,9 +438,162 @@
     <string name="kiosk_empty_state_button">הוסף אפליקציות עכשיו</string>
     <string name="kiosk_desc_power">כיבוי/הפעלה</string>
     <string name="kiosk_desc_settings">הגדרות</string>
-    <string name="main_service_initializing">אייבלוק הופעלה עם הדלקת המכשיר.</string>
+    <string name="main_service_initializing">מפתח הופעלה עם הדלקת המכשיר.</string>
 
     <string name="settings_item_firewall">סינון רשת לפי אפליקציה</string>
     <string name="feature_vpn_title_new">חומת אש פנימית לפי אפליקציה</string>
     <string name="feature_vpn_description_new">מנתב רק אפליקציות שנבחרו דרך ה-VPN הפנימי ואוכף עליהן כללי חסימה ואישור.</string>
+
+    <!-- Modular settings descriptions and organization -->
+    <string name="settings_description_select_apps_to_block">בחר אילו אפליקציות ייחסמו במכשיר.</string>
+    <string name="settings_description_view_blocked_apps">עיין באפליקציות החסומות ונהל אותן.</string>
+    <string name="settings_description_firewall">נהל כללי רשת וסינון לפי אפליקציה.</string>
+    <string name="device_health_title">תקינות המכשיר</string>
+    <string name="device_health_setting_description">בדוק הרשאות, VPN והגנות פעילות במכשיר.</string>
+    <string name="device_health_refresh">רענן בדיקת תקינות</string>
+    <string name="device_health_device_owner">בעלות על המכשיר</string>
+    <string name="device_health_admin_active">הרשאת ניהול פעילה</string>
+    <string name="device_health_vpn_permission">הרשאת VPN</string>
+    <string name="device_health_vpn_always_on">VPN פעיל תמיד</string>
+    <string name="device_health_vpn_active">חיבור VPN פעיל</string>
+    <string name="device_health_device_admin">ניהול המכשיר</string>
+    <string name="device_health_vpn">מצב VPN</string>
+    <string name="device_health_active_protections">הגנות פעילות</string>
+    <string name="device_health_no_active_protections">אין הגנות פעילות.</string>
+    <string name="device_health_needs_attention">דורש תשומת לב</string>
+    <string name="device_health_summary_ok">המכשיר תקין ומוגן</string>
+    <string name="device_health_summary_attention">נדרשת בדיקה של הגדרות המכשיר</string>
+    <string name="device_health_status_active">פעיל</string>
+    <string name="device_health_status_inactive">לא פעיל</string>
+    <string name="device_health_status_unknown">לא ידוע</string>
+    <string name="device_health_status_check_failed">הבדיקה נכשלה</string>
+    <string name="settings_description_toggle_position">בחר באיזה צד יופיעו פקדי ההגדרות.</string>
+    <string name="settings_description_use_checkbox">הצג תיבות סימון במקום מתגים.</string>
+    <string name="settings_description_show_contact_email">הצג קישור ליצירת קשר במייל.</string>
+    <string name="settings_description_show_boot_toast">הצג הודעה קצרה לאחר הפעלת המכשיר.</string>
+    <string name="settings_description_manage_kiosk">הגדר אפליקציות, תצוגה והגבלות למצב קיוסק.</string>
+    <string name="settings_description_update_channel">בחר בין ערוץ עדכונים יציב לערוץ מוקדם.</string>
+    <string name="settings_description_frp">נהל חשבונות Google המורשים לאחר איפוס.</string>
+    <string name="settings_description_change_password">עדכן את סיסמת הניהול של מפתח.</string>
+    <string name="settings_description_disable_updates">מנע עדכונים אוטומטיים וידניים של האפליקציה.</string>
+    <string name="settings_description_lock_settings">חסום לצמיתות גישה עתידית למסך ההגדרות.</string>
+    <string name="settings_description_removal_options">הסר את ההגנות או העבר בעלות לפני ההסרה.</string>
+    <string name="settings_section_favorites">מועדפים</string>
+    <string name="settings_section_active">פעיל</string>
+    <string name="settings_unsaved_changes">שינויים שלא נשמרו: %1$d</string>
+    <string name="settings_button_undo">בטל שינוי אחרון</string>
+    <string name="settings_add_favorite">הוסף למועדפים</string>
+    <string name="settings_remove_favorite">הסר מהמועדפים</string>
+    <string name="settings_expand_category">הרחב קטגוריה</string>
+    <string name="settings_collapse_category">כווץ קטגוריה</string>
+    <string name="settings_error_save_failed">שמירת ההגדרות נכשלה. השינויים נשארו לעריכה.</string>
+
+    <!-- Installed-app-only mini store -->
+    <string name="mini_store_dashboard_button">ניהול ועדכון אפליקציות</string>
+    <string name="mini_store_title">מרכז האפליקציות</string>
+    <string name="app_center_tab_updates">עדכונים</string>
+    <string name="app_center_tab_protection">חסימה והסרה</string>
+    <string name="app_center_filter_all">הכול</string>
+    <string name="app_center_filter_blocked">חסומות (%1$d)</string>
+    <string name="app_center_filter_suspended">מושבתות (%1$d)</string>
+    <string name="app_center_protection_locked">🔒 נדרשת סיסמת ניהול כדי לנהל חסימות והסרות</string>
+    <string name="app_center_release_block">שחרר חסימה</string>
+    <string name="app_center_release_suspend">בטל השבתה</string>
+    <string name="app_center_action_block">חסימה</string>
+    <string name="app_center_action_suspend">השבתה</string>
+    <string name="app_center_action_uninstall">הסרה</string>
+    <string name="app_center_status_blocked">🚫 חסומה</string>
+    <string name="app_center_status_suspended">⏸️ מושבתת</string>
+    <string name="app_center_not_installed">אינה מותקנת</string>
+    <string name="app_center_uninstall_title">הסרת %1$s</string>
+    <string name="app_center_uninstall_message">האפליקציה והנתונים שלה יימחקו מהמכשיר.</string>
+    <string name="app_center_empty">אין אפליקציות להצגה</string>
+    <string name="mini_store_header_title">📦 האפליקציות שלך</string>
+    <string name="mini_store_header_subtitle">רק אפליקציות שיש להן עדכון</string>
+    <string name="mini_store_summary">%1$d אפליקציות • %2$d עדכונים זמינים</string>
+    <string name="mini_store_installed_only">אפליקציות מותקנות בלבד</string>
+    <string name="mini_store_installed_only_description">אפשר לעדכן או להסיר אפליקציות משתמש קיימות. אפליקציות מערכת מוצגות לצורך עדכון ומוגנות מהסרה.</string>
+    <string name="mini_store_search_hint">חיפוש לפי שם או שם חבילה</string>
+    <string name="mini_store_clear_search">נקה חיפוש</string>
+    <string name="mini_store_filter_all">הכול (%1$d)</string>
+    <string name="mini_store_filter_user">משתמש (%1$d)</string>
+    <string name="mini_store_filter_system">מערכת (%1$d)</string>
+    <string name="mini_store_system_badge">מערכת</string>
+    <string name="mini_store_preferred_badge">מועדף</string>
+    <string name="mini_store_system_protected">🔒 לא ניתן להסיר</string>
+    <string name="mini_store_device_protected">🔒 מוגנת</string>
+    <string name="mini_store_blacklist">רשימה שחורה</string>
+    <string name="mini_store_blacklist_title">🚫 אפליקציות מוחרגות</string>
+    <string name="mini_store_blacklist_hint">אפליקציות שסומנו כאן לא יוצגו ולא יעודכנו.</string>
+    <string name="mini_store_blacklist_empty">לא הוחרגו אפליקציות.</string>
+    <string name="mini_store_blacklist_add">🚫 החרג מעדכונים</string>
+    <string name="mini_store_blacklist_remove">בטל החרגה</string>
+    <string name="mini_store_blacklist_added">%1$s הוחרגה ולא תוצג יותר</string>
+    <string name="mini_store_blacklist_count">%1$d מוחרגות</string>
+    <string name="mini_store_refresh">בדוק עדכונים</string>
+    <string name="mini_store_waiting_for_access">ממתין לאימות סיסמת הניהול…</string>
+    <string name="mini_store_update_all">עדכן הכול (%1$d)</string>
+    <string name="mini_store_source_warning">⚠️ חלק מהאפליקציות לא נבדקו</string>
+    <string name="mini_store_source_checking">🔄 בודק עדכונים…</string>
+    <string name="mini_store_source_checking_catalog">🔄 בודק עדכונים…</string>
+    <string name="mini_store_source_checked">✅ הבדיקה הושלמה</string>
+    <string name="mini_store_source_catalog_only">✅ הבדיקה הושלמה</string>
+    <string name="mini_store_source_catalog_fallback">⚠️ הבדיקה הושלמה חלקית</string>
+    <string name="mini_store_source_play_only">✅ הבדיקה הושלמה</string>
+    <string name="mini_store_source_unavailable">❌ לא ניתן לבדוק עדכונים</string>
+    <string name="mini_store_source_signed_out">⚠️ הבדיקה לא הושלמה — נדרשת התחברות לחשבון Google</string>
+    <string name="mini_store_play_issue_rejected">🔑 החיבור לחשבון נדחה על ידי Google ב-%1$s</string>
+    <string name="mini_store_play_issue_no_refresh">🔑 החיבור לחשבון פג ב-%1$s ולא ניתן לחדשו</string>
+    <string name="mini_store_play_issue_unreadable">🔑 החיבור השמור נפגם ב-%1$s</string>
+    <string name="mini_store_play_issue_temporary">⏳ תקלה זמנית בקריאת החיבור ב-%1$s</string>
+    <string name="mini_store_source_not_checked">לא נבדק</string>
+    <string name="mini_store_source_google_play">Google Play</string>
+    <string name="mini_store_source_signed_catalog">קטלוג מאובטח</string>
+    <string name="mini_store_play_not_configured">מקור Google Play אינו מוגדר ב-build זה</string>
+    <string name="mini_store_play_not_signed_in">לא מחובר לחשבון Google. יש להתחבר כדי לקבל עדכונים מ-Google Play.</string>
+    <string name="mini_store_play_login_title">התחברות ל-Google Play</string>
+    <string name="mini_store_play_login_cancel">ביטול</string>
+    <string name="mini_store_play_login_continue">המשך</string>
+    <string name="mini_store_play_login_retry">נסה שוב</string>
+    <string name="mini_store_play_login_retry_hint">ההתחברות לא הושלמה. הקישור לאישור תקף לזמן קצר, ולכן יש לבצע את התהליך מחדש ברצף אחד.</string>
+    <string name="mini_store_play_login_exchanging">יוצר חיבור מאובטח ל-Google Play…</string>
+    <string name="mini_store_play_login_email_hint">הזן את כתובת חשבון Google שאיתו תתחבר. החשבון משמש לקבלת עדכונים לאפליקציות שמותקנות במכשיר הזה בלבד.</string>
+    <string name="mini_store_play_login_email_label">כתובת חשבון Google</string>
+    <string name="mini_store_play_login_invalid_email">כתובת חשבון Google אינה תקינה</string>
+    <string name="mini_store_play_login_missing_token">לא התקבל אישור התחברות מ-Google</string>
+    <string name="mini_store_play_login_session_failed">Google לא אישרה את יצירת החיבור. יש לנסות להתחבר מחדש.</string>
+    <string name="mini_store_download_progress_detail">%1$d%% • %2$s MB מתוך %3$s MB</string>
+    <string name="mini_store_play_sign_in">התחבר ל-Google Play</string>
+    <string name="mini_store_play_signed_in_as">👤 %1$s</string>
+    <string name="mini_store_play_sign_out">התנתק מ-Google Play</string>
+    <string name="mini_store_queued">בתור…</string>
+    <string name="mini_store_cancel_update">בטל עדכון</string>
+    <string name="mini_store_cancel_all_updates">בטל את כל העדכונים</string>
+    <string name="mini_store_play_banner_title">🔗 חבר חשבון Google כדי לראות עדכונים</string>
+    <string name="mini_store_play_banner_body">פעם אחת בלבד. החיבור נשמר במכשיר.</string>
+    <string name="mini_store_play_banner_button">התחבר לחשבון Google</string>
+    <string name="mini_store_play_banner_no_account">לא נמצא חשבון Google במכשיר. יש להוסיף חשבון בהגדרות המכשיר, ואז לחזור לכאן.</string>
+    <string name="mini_store_play_login_continue_with_account">%1$s מוצע כברירת מחדל. ניתן לבחור חשבון אחר במסך של Google, והחשבון שייבחר שם הוא שיישמר.</string>
+    <string name="mini_store_play_auth_forbidden">שירות ההתחברות המורשה דחה את בקשת ההתחברות ל־Google Play.</string>
+    <string name="mini_store_play_auth_rate_limited">שירות ההתחברות המורשה הגביל זמנית את קצב הבקשות.</string>
+    <string name="mini_store_play_auth_failed">התחברות אנונימית ל־Google Play נכשלה (HTTP %1$d).</string>
+    <string name="mini_store_no_updates">אין עדכונים זמינים כרגע.</string>
+    <string name="mini_store_no_filtered_results">לא נמצאו אפליקציות מתאימות.</string>
+    <string name="mini_store_installed_version">מותקנת: %1$s</string>
+    <string name="mini_store_available_version">עדכון זמין: %1$s</string>
+    <string name="mini_store_available_version_with_source">עדכון זמין: %1$s • %2$s</string>
+    <string name="mini_store_stage_resolving">מכין קבצי עדכון מאובטחים…</string>
+    <string name="mini_store_stage_downloading">מוריד את קבצי העדכון…</string>
+    <string name="mini_store_stage_verifying">מאמת גודל, SHA-256, חבילה וחתימה…</string>
+    <string name="mini_store_stage_installing">מתקין את כל רכיבי העדכון באופן אטומי…</string>
+    <string name="mini_store_download_progress">%1$d%% הושלמו</string>
+    <string name="mini_store_update">עדכון</string>
+    <string name="mini_store_no_update">אין עדכון</string>
+    <string name="mini_store_no_managed_update">אין עדכון מנוהל</string>
+    <string name="mini_store_not_checked">לא נבדק</string>
+    <string name="mini_store_uninstall">הסרה</string>
+    <string name="mini_store_uninstall_title">הסרת אפליקציה</string>
+    <string name="mini_store_uninstall_message">להסיר את %1$s מהמכשיר? כללי מפתח וחומת האש יישמרו.</string>
+    <string name="settings_item_mini_store_password">דרוש סיסמה בכניסה למיני־חנות</string>
+    <string name="settings_description_mini_store_password">כאשר מופעל, הכניסה לניהול ולעדכון אפליקציות דורשת את סיסמת הניהול של מפתח.</string>
 </resources>

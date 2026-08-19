@@ -23,7 +23,9 @@ fun UpdateDialog(
     val onDismiss = { onEvent(DashboardEvent.OnDismissUpdateDialog) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (uiState.updateDialogState != UpdateDialogState.DOWNLOADING) onDismiss()
+        },
         title = { Text(stringResource(id = R.string.update_dialog_title)) },
         text = {
             when (uiState.updateDialogState) {

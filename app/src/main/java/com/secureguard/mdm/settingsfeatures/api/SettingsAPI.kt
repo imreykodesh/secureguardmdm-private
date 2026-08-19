@@ -20,6 +20,7 @@ enum class SettingCategory(@StringRes val titleRes: Int) {
 sealed interface SettingsFeature {
     val id: String
     @get:StringRes val titleRes: Int
+    @get:StringRes val descriptionRes: Int
     @get:DrawableRes val iconRes: Int
     val category: SettingCategory
     val requiredSdkVersion: Int get() = 0

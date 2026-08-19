@@ -3,6 +3,7 @@ package com.secureguard.mdm.ui.screens.dashboard
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,8 @@ fun AppInfoDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val forumProfileUrl = stringResource(id = R.string.app_info_forum_profile_url)
     var showUnofficialWarning by remember { mutableStateOf(false) }
 
     val isOfficial = buildStatus.equals(stringResource(id = R.string.app_build_status), ignoreCase = true)
@@ -49,7 +53,15 @@ fun AppInfoDialog(
 
                 HorizontalDivider()
                 InfoRow(stringResource(id = R.string.app_info_author), stringResource(id = R.string.app_info_author_name))
-                InfoRow(stringResource(id = R.string.app_info_forum_user), stringResource(id = R.string.app_info_forum_user_name))
+                InfoRow(stringResource(id = R.string.app_info_upgrade), stringResource(id = R.string.app_info_upgrade_name))
+                InfoRow(
+                    label = stringResource(id = R.string.app_info_forum_user),
+                    value = stringResource(id = R.string.app_info_forum_user_name),
+                    valueColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable {
+                        runCatching { uriHandler.openUri(forumProfileUrl) }
+                    }
+                )
                 InfoRow(stringResource(id = R.string.app_info_contact_us), stringResource(id = R.string.contact_email))
             }
         },
@@ -90,8 +102,13 @@ fun AppInfoDialog(
 }
 
 @Composable
-private fun InfoRow(label: String, value: String, valueColor: Color = Color.Unspecified) {
-    Row {
+private fun InfoRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color.Unspecified,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier) {
         Text(text = label, fontWeight = FontWeight.Bold, modifier = Modifier.width(110.dp))
         Text(text = value, color = valueColor)
     }
@@ -102,7 +119,7 @@ private fun sendEmail(context: Context) {
     val intent = Intent(Intent.ACTION_SENDTO).apply {
         data = Uri.parse("mailto:")
         putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
-        putExtra(Intent.EXTRA_SUBJECT, "A bloq App Inquiry")
+        putExtra(Intent.EXTRA_SUBJECT, "Mafteach App Inquiry")
     }
     try {
         context.startActivity(intent)

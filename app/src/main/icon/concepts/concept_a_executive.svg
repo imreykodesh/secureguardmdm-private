@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="48" y1="28" x2="464" y2="484" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#031D26"/><stop offset=".58" stop-color="#07505C"/><stop offset="1" stop-color="#087A83"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="155" y1="116" x2="360" y2="422" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D6570"/><stop offset=".48" stop-color="#073E4A"/><stop offset="1" stop-color="#021F29"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="-26" y1="74" x2="27" y2="-63" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9914D"/><stop offset=".48" stop-color="#E3CA8C"/><stop offset="1" stop-color="#FFF3D0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-25%" width="160%" height="170%"><feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#001219" flood-opacity=".52"/></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M0 104 214 0h92L0 151Z" fill="#B4FFF7" opacity=".035"/>
+  <path d="M512 337 319 512h193Z" fill="#20C8C5" opacity=".055"/>
+  <g filter="url(#shadow)">
+    <path d="M256 91c38 29 79 44 126 52v105c0 89-51 149-126 188-75-39-126-99-126-188V143c47-8 88-23 126-52Z" fill="url(#shield)" stroke="#65C9C8" stroke-width="6" stroke-linejoin="round" opacity=".98"/>
+    <path d="M256 112c31 22 64 35 101 43" fill="none" stroke="#D4FFFB" stroke-width="7" stroke-linecap="round" opacity=".25"/>
+    <!-- Geometric skeleton key; no circular bow. -->
+    <g transform="translate(251 283) rotate(42)" fill="url(#metal)">
+      <path fill-rule="evenodd" d="M0 18 28 34v32L0 82l-28-16V34L0 18Zm0 21 10 6v10L0 61l-10-6V45L0 39Z"/>
+      <rect x="-7" y="-66" width="14" height="106" rx="5"/>
+      <path d="M7-61h27v13H7zM7-39h19v11H7z"/>
+    </g>
+  </g>
+</svg>

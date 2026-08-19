@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Mafteach — silver key shield</title>
+  <desc id="desc">A centered silver house key inside a faceted dark-turquoise security shield.</desc>
+  <defs>
+    <linearGradient id="bg" x1="40" y1="20" x2="472" y2="492" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#04141C"/><stop offset=".55" stop-color="#063E48"/><stop offset="1" stop-color="#0A828B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="256" cy="230" r="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38DCD6" stop-opacity=".22"/>
+      <stop offset=".6" stop-color="#0EA8AE" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="face" x1="150" y1="90" x2="368" y2="452" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1AA0A4"/><stop offset=".5" stop-color="#0A5C68"/><stop offset="1" stop-color="#03222A"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="256" y1="88" x2="256" y2="452" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9CF3EE" stop-opacity=".85"/>
+      <stop offset=".4" stop-color="#4FBDBF" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#4FBDBF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="150" y1="90" x2="330" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BFFFFA" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#BFFFFA" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="key" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8798A0"/><stop offset=".45" stop-color="#DCE5E6"/><stop offset=".55" stop-color="#F4F8F8"/><stop offset="1" stop-color="#B7C4C7"/>
+    </linearGradient>
+    <linearGradient id="keyHi" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFFFFF" stop-opacity=".9"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#00080C" flood-opacity=".5"/></filter>
+    <filter id="keyShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#021014" flood-opacity=".45"/></filter>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="230" r="230" fill="url(#glow)"/>
+
+  <g filter="url(#shadow)">
+    <path id="shieldOuter" d="M256,88
+      L378,134
+      C392,176 395,203 395,244
+      C395,328 372,394 256,453
+      C140,394 117,328 117,244
+      C117,203 120,176 134,134
+      L256,88 Z"
+      fill="url(#face)" stroke="#57C8C9" stroke-width="5" stroke-linejoin="round"/>
+
+    <path d="M256,88
+      L378,134
+      C392,176 395,203 395,244
+      C395,328 372,394 256,453
+      C140,394 117,328 117,244
+      C117,203 120,176 134,134
+      L256,88 Z"
+      fill="none" stroke="url(#rim)" stroke-width="3" stroke-linejoin="round"/>
+
+    <path d="M256,88 L378,134 C392,176 395,203 395,244 395,318 377,378 283,432 L256,88 Z" fill="url(#sheen)"/>
+
+    <g filter="url(#keyShadow)" transform="translate(256 263)">
+      <g fill="url(#key)" stroke="#5C6E75" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+        <path fill-rule="evenodd" d="M0,19 C-26,19 -47,40 -47,66 C-47,92 -26,113 0,113 C26,113 47,92 47,66 C47,40 26,19 0,19 Z M0,45 C11,45 21,55 21,66 C21,77 11,87 0,87 C-11,87 -21,77 -21,66 C-21,55 -11,45 0,45 Z"/>
+        <path d="M-10,30 L-10,-96 L10,-96 L10,30 Z"/>
+        <path d="M10,-92 L37,-92 L37,-75 L10,-75 Z"/>
+        <path d="M10,-69 L31,-69 L31,-52 L10,-52 Z"/>
+        <path d="M10,-46 L25,-46 L25,-29 L10,-29 Z"/>
+      </g>
+      <path d="M-5,-92 L2,-92 L2,24 L-5,24 Z" fill="url(#keyHi)" opacity=".5"/>
+      <path d="M-39,51 A29,29 0 0 1 -22,86" fill="none" stroke="#FFFFFF" stroke-opacity=".5" stroke-width="3" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

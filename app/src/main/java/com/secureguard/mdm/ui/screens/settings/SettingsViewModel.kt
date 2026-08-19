@@ -20,6 +20,7 @@ import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.features.impl.BlockInternetVpnFeature
 import com.secureguard.mdm.features.impl.NetfreeOnlyModeFeature
 import com.secureguard.mdm.features.registry.CategoryRegistry
+import com.secureguard.mdm.ministore.data.MiniStorePreferences
 import com.secureguard.mdm.security.PasswordManager
 import com.secureguard.mdm.settingsfeatures.api.SettingsFeature
 import com.secureguard.mdm.settingsfeatures.api.ToggleSetting
@@ -33,6 +34,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 
@@ -45,6 +48,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val passwordManager: PasswordManager,
+    private val miniStorePreferences: MiniStorePreferences,
     private val dpm: DevicePolicyManager
 ) : ViewModel() {
 
@@ -76,11 +80,16 @@ class SettingsViewModel @Inject constructor(
         SecureGuardDeviceAdminReceiver.getComponentName(context)
     }
 
-    // --- NEW: Store initial state for comparison ---
     private var initialProtectionTogglesState: Map<String, Boolean> = emptyMap()
     private var initialSettingsTogglesState: Map<String, Boolean> = emptyMap()
-
+    private var undoSnapshot: ToggleSnapshot? = null
+    private val favoritePersistenceMutex = Mutex()
     private var pendingVpnFeatureId: String? = null
+
+    private data class ToggleSnapshot(
+        val protectionToggles: Map<String, Boolean>,
+        val settingToggles: Map<String, Boolean>
+    )
 
     init {
         loadInitialState()
@@ -92,6 +101,13 @@ class SettingsViewModel @Inject constructor(
             is SettingsEvent.OnToggleProtectionFeature -> handleProtectionToggle(event.featureId, event.isEnabled)
             is SettingsEvent.OnVpnPermissionResult -> handleVpnPermissionResult(event.granted)
             is SettingsEvent.OnToggleSettingChanged -> handleSettingToggle(event.settingId, event.isChecked)
+            is SettingsEvent.OnFavoriteToggled -> handleFavoriteToggle(event.favoriteKey)
+            is SettingsEvent.OnCategoryCollapsedToggled -> handleCategoryCollapsedToggle(event.categoryKey)
+            is SettingsEvent.OnAllCategoriesCollapsedChanged -> handleAllCategoriesCollapsedChange(
+                categoryKeys = event.categoryKeys,
+                collapsed = event.collapsed
+            )
+            SettingsEvent.OnUndoClick -> undoLastToggle()
             is SettingsEvent.OnActionSettingClicked -> handleActionClick(event.settingId)
             is SettingsEvent.OnLockSettingsConfirmed -> lockSettings(event.allowManualUpdate)
             is SettingsEvent.OnRegularRemovalSelected -> handleRegularRemovalSelected()
@@ -120,16 +136,33 @@ class SettingsViewModel @Inject constructor(
 
             val protectionCategoryToggles = loadProtectionFeatures()
             val settingItemsByCategory = loadSettingsFeatures()
+            val storedFavoriteKeys = settingsRepository.getFavoriteSettingsKeys()
+            val validFavoriteKeys = validFavoriteKeys()
+            val favoriteKeys = storedFavoriteKeys.intersect(validFavoriteKeys)
+            if (favoriteKeys != storedFavoriteKeys) {
+                settingsRepository.setFavoriteSettingsKeys(favoriteKeys)
+            }
 
-            // --- NEW: Capture the initial state after loading ---
-            initialProtectionTogglesState = protectionCategoryToggles.flatMap { it.toggles }.associate { it.feature.id to it.isEnabled }
-            initialSettingsTogglesState = settingItemsByCategory.values.flatten().filter { it.feature is ToggleSetting }.associate { it.feature.id to it.isChecked }
+            initialProtectionTogglesState = protectionCategoryToggles
+                .flatMap { it.toggles }
+                .associate { it.feature.id to it.isEnabled }
+            initialSettingsTogglesState = settingItemsByCategory.values
+                .flatten()
+                .filter { it.feature is ToggleSetting }
+                .associate { it.feature.id to it.isChecked }
+
+            val initiallyCollapsedCategoryKeys = buildSet {
+                settingItemsByCategory.keys.forEach { add(modularCategoryKey(it)) }
+                protectionCategoryToggles.forEach { add(protectionCategoryKey(it)) }
+            }
 
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     protectionCategoryToggles = protectionCategoryToggles,
-                    settingItemsByCategory = settingItemsByCategory
+                    settingItemsByCategory = settingItemsByCategory,
+                    favoriteKeys = favoriteKeys,
+                    collapsedCategoryKeys = initiallyCollapsedCategoryKeys
                 )
             }
         }
@@ -163,6 +196,7 @@ class SettingsViewModel @Inject constructor(
                         ToggleContactEmailSetting.id -> settingsRepository.isContactEmailVisible()
                         ToggleUpdatesSetting.id -> settingsRepository.areAllUpdatesDisabled()
                         ShowBootToastSetting.id -> settingsRepository.isShowBootToastEnabled()
+                        ToggleMiniStorePasswordSetting.id -> miniStorePreferences.isPasswordRequired()
                         else -> false
                     }
                 } else false
@@ -191,73 +225,188 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun handleSettingToggle(settingId: String, isChecked: Boolean) {
-        _uiState.update { currentState ->
-            val updatedMap = currentState.settingItemsByCategory.toMutableMap()
-            for ((category, items) in updatedMap) {
-                val updatedItems = items.map { model ->
-                    if (model.feature.id == settingId) {
-                        model.copy(isChecked = isChecked)
-                    } else {
-                        model
-                    }
+        val currentState = _uiState.value
+        val currentValue = currentState.settingItemsByCategory.values
+            .flatten()
+            .firstOrNull { it.feature.id == settingId }
+            ?.isChecked
+        if (currentValue == null || currentValue == isChecked) return
+
+        undoSnapshot = currentState.toToggleSnapshot()
+        _uiState.update { state ->
+            val updatedMap = state.settingItemsByCategory.mapValues { (_, items) ->
+                items.map { model ->
+                    if (model.feature.id == settingId) model.copy(isChecked = isChecked) else model
                 }
-                updatedMap[category] = updatedItems
             }
-            currentState.copy(settingItemsByCategory = updatedMap)
+            recomputeDraftMetadata(
+                state.copy(
+                    settingItemsByCategory = updatedMap,
+                    canUndo = true
+                )
+            )
         }
     }
 
-    private fun saveChanges() {
+    private fun handleFavoriteToggle(favoriteKey: String) {
+        if (favoriteKey !in validFavoriteKeys()) return
+        _uiState.update { state ->
+            val updatedKeys = state.favoriteKeys.toMutableSet().apply {
+                if (!add(favoriteKey)) remove(favoriteKey)
+            }
+            state.copy(favoriteKeys = updatedKeys)
+        }
+        val keysToPersist = _uiState.value.favoriteKeys
         viewModelScope.launch {
-            val currentState = _uiState.value
-            var hasChanges = false
-            val snackbarMessage = context.getString(R.string.dialog_changes_saved_successfully)
+            favoritePersistenceMutex.withLock {
+                settingsRepository.setFavoriteSettingsKeys(keysToPersist)
+            }
+        }
+    }
 
-            // Save new modular settings, ONLY IF CHANGED
-            currentState.settingItemsByCategory.values.flatten().forEach { model ->
-                if (model.feature is ToggleSetting) {
-                    val initialValue = initialSettingsTogglesState[model.feature.id]
-                    if (initialValue != model.isChecked) {
-                        hasChanges = true
+    private fun handleCategoryCollapsedToggle(categoryKey: String) {
+        _uiState.update { state ->
+            val updatedKeys = state.collapsedCategoryKeys.toMutableSet().apply {
+                if (!add(categoryKey)) remove(categoryKey)
+            }
+            state.copy(collapsedCategoryKeys = updatedKeys)
+        }
+    }
+
+    private fun handleAllCategoriesCollapsedChange(categoryKeys: Set<String>, collapsed: Boolean) {
+        if (categoryKeys.isEmpty()) return
+        _uiState.update { state ->
+            state.copy(
+                collapsedCategoryKeys = if (collapsed) {
+                    state.collapsedCategoryKeys + categoryKeys
+                } else {
+                    state.collapsedCategoryKeys - categoryKeys
+                }
+            )
+        }
+    }
+
+    private fun undoLastToggle() {
+        val snapshot = undoSnapshot ?: return
+        undoSnapshot = null
+        _uiState.update { state ->
+            val restoredProtectionCategories = state.protectionCategoryToggles.map { category ->
+                category.copy(
+                    toggles = category.toggles.map { toggle ->
+                        toggle.copy(isEnabled = snapshot.protectionToggles[toggle.feature.id] ?: toggle.isEnabled)
+                    }
+                )
+            }
+            val restoredSettingItems = state.settingItemsByCategory.mapValues { (_, items) ->
+                items.map { model ->
+                    model.copy(isChecked = snapshot.settingToggles[model.feature.id] ?: model.isChecked)
+                }
+            }
+            recomputeDraftMetadata(
+                state.copy(
+                    protectionCategoryToggles = restoredProtectionCategories,
+                    settingItemsByCategory = restoredSettingItems,
+                    canUndo = false
+                )
+            )
+        }
+    }
+
+    private fun SettingsUiState.toToggleSnapshot(): ToggleSnapshot = ToggleSnapshot(
+        protectionToggles = protectionCategoryToggles
+            .flatMap { it.toggles }
+            .associate { it.feature.id to it.isEnabled },
+        settingToggles = settingItemsByCategory.values
+            .flatten()
+            .filter { it.feature is ToggleSetting }
+            .associate { it.feature.id to it.isChecked }
+    )
+
+    private fun recomputeDraftMetadata(state: SettingsUiState): SettingsUiState {
+        val changedProtectionCount = state.protectionCategoryToggles
+            .flatMap { it.toggles }
+            .count { initialProtectionTogglesState[it.feature.id] != it.isEnabled }
+        val changedSettingsCount = state.settingItemsByCategory.values
+            .flatten()
+            .filter { it.feature is ToggleSetting }
+            .count { initialSettingsTogglesState[it.feature.id] != it.isChecked }
+        val changeCount = changedProtectionCount + changedSettingsCount
+        return state.copy(
+            hasUnsavedChanges = changeCount > 0,
+            unsavedChangeCount = changeCount
+        )
+    }
+
+    private fun validFavoriteKeys(): Set<String> = buildSet {
+        SettingsRegistry.allSettings.forEach { add(FavoriteKey.setting(it.id)) }
+        CategoryRegistry.allCategories
+            .flatMap { it.features }
+            .forEach { add(FavoriteKey.protection(it.id)) }
+    }
+
+    private fun saveChanges() {
+        if (!_uiState.value.hasUnsavedChanges) return
+
+        viewModelScope.launch {
+            val stateToSave = _uiState.value
+            try {
+                stateToSave.settingItemsByCategory.values.flatten().forEach { model ->
+                    if (model.feature is ToggleSetting &&
+                        initialSettingsTogglesState[model.feature.id] != model.isChecked
+                    ) {
                         when (model.feature.id) {
                             ToggleUiPositionSetting.id -> settingsRepository.setToggleOnStart(model.isChecked)
                             ToggleUiControlTypeSetting.id -> settingsRepository.setUseCheckbox(model.isChecked)
                             ToggleContactEmailSetting.id -> settingsRepository.setContactEmailVisible(model.isChecked)
                             ToggleUpdatesSetting.id -> settingsRepository.setAllUpdatesDisabled(model.isChecked)
-                            ShowBootToastSetting.id -> settingsRepository.setShowBootToastEnabled(model.isChecked) // <-- SAVE the new state
+                            ShowBootToastSetting.id -> settingsRepository.setShowBootToastEnabled(model.isChecked)
+                            ToggleMiniStorePasswordSetting.id -> miniStorePreferences.setPasswordRequired(model.isChecked)
                         }
                     }
                 }
-            }
 
-            // Save main protection features, ONLY IF CHANGED
-            val changedProtectionToggles = currentState.protectionCategoryToggles
-                .flatMap { it.toggles }
-                .filter { initialProtectionTogglesState[it.feature.id] != it.isEnabled }
-                .sortedBy { it.isEnabled } // Disable competing owners before enabling a new VPN mode.
-            changedProtectionToggles.forEach { toggle ->
-                hasChanges = true
-                if (toggle.feature.id == BlockInternetVpnFeature.id && toggle.isEnabled) {
-                    // Persist first so an empty-selection service startup can deterministically clear it.
-                    settingsRepository.setFeatureState(toggle.feature.id, true)
-                    runCatching {
-                        toggle.feature.applyPolicy(context, dpm, adminComponentName, true)
-                    }.onFailure {
-                        settingsRepository.setFeatureState(toggle.feature.id, false)
-                        throw it
+                val changedProtectionToggles = stateToSave.protectionCategoryToggles
+                    .flatMap { it.toggles }
+                    .filter { initialProtectionTogglesState[it.feature.id] != it.isEnabled }
+                    .sortedBy { it.isEnabled }
+                changedProtectionToggles.forEach { toggle ->
+                    if (toggle.feature.id == BlockInternetVpnFeature.id && toggle.isEnabled) {
+                        settingsRepository.setFeatureState(toggle.feature.id, true)
+                        runCatching {
+                            toggle.feature.applyPolicy(context, dpm, adminComponentName, true)
+                        }.onFailure {
+                            settingsRepository.setFeatureState(toggle.feature.id, false)
+                            throw it
+                        }
+                    } else {
+                        toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
+                        settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
                     }
-                } else {
-                    toggle.feature.applyPolicy(context, dpm, adminComponentName, toggle.isEnabled)
-                    settingsRepository.setFeatureState(toggle.feature.id, toggle.isEnabled)
+                }
+
+                initialProtectionTogglesState = stateToSave.protectionCategoryToggles
+                    .flatMap { it.toggles }
+                    .associate { it.feature.id to it.isEnabled }
+                initialSettingsTogglesState = stateToSave.settingItemsByCategory.values
+                    .flatten()
+                    .filter { it.feature is ToggleSetting }
+                    .associate { it.feature.id to it.isChecked }
+                undoSnapshot = null
+                _uiState.update { state ->
+                    recomputeDraftMetadata(
+                        state.copy(
+                            snackbarMessage = context.getString(R.string.dialog_changes_saved_successfully),
+                            canUndo = false
+                        )
+                    )
+                }
+                _sideEffect.emit(SettingsSideEffect.NavigateBack)
+            } catch (error: Exception) {
+                Log.e("SettingsVM", "Failed to save settings", error)
+                _uiState.update {
+                    it.copy(snackbarMessage = context.getString(R.string.settings_error_save_failed))
                 }
             }
-
-            if (hasChanges) {
-                _uiState.update { it.copy(snackbarMessage = snackbarMessage) }
-            }
-
-            // Always navigate back, even if no changes were made.
-            _sideEffect.emit(SettingsSideEffect.NavigateBack)
         }
     }
 
@@ -281,8 +430,17 @@ class SettingsViewModel @Inject constructor(
                 return
             }
         }
-        _uiState.update { currentState ->
-            val updatedCategories = currentState.protectionCategoryToggles.map { category ->
+
+        val currentState = _uiState.value
+        val currentValue = currentState.protectionCategoryToggles
+            .flatMap { it.toggles }
+            .firstOrNull { it.feature.id == featureId }
+            ?.isEnabled
+        if (currentValue == null || currentValue == isEnabled) return
+
+        undoSnapshot = currentState.toToggleSnapshot()
+        _uiState.update { state ->
+            val updatedCategories = state.protectionCategoryToggles.map { category ->
                 val updatedToggles = category.toggles.map { toggle ->
                     when {
                         toggle.feature.id == featureId -> toggle.copy(isEnabled = isEnabled)
@@ -295,7 +453,12 @@ class SettingsViewModel @Inject constructor(
                 }
                 category.copy(toggles = updatedToggles)
             }
-            currentState.copy(protectionCategoryToggles = updatedCategories)
+            recomputeDraftMetadata(
+                state.copy(
+                    protectionCategoryToggles = updatedCategories,
+                    canUndo = true
+                )
+            )
         }
     }
 

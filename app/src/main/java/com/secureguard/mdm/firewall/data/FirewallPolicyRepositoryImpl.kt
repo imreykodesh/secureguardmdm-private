@@ -35,6 +35,15 @@ class FirewallPolicyRepositoryImpl @Inject constructor(
         dao.replaceSelectedPackages(packageNames, System.currentTimeMillis())
     }
 
+    override suspend fun ensurePackageForCapture(packageName: String) {
+        dao.ensurePackageForCapture(packageName, System.currentTimeMillis())
+    }
+
+    override suspend fun upsertSimpleBlockRule(rule: FirewallRule): Long {
+        val now = System.currentTimeMillis()
+        return dao.upsertSimpleBlockRule(rule.toEntity(), now)
+    }
+
     override suspend fun updatePolicyMode(packageName: String, mode: FirewallPolicyMode) {
         val now = System.currentTimeMillis()
         val existing = dao.getPolicies().firstOrNull { it.packageName == packageName }

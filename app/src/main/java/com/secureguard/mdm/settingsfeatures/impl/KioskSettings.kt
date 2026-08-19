@@ -8,6 +8,7 @@ import com.secureguard.mdm.ui.navigation.Routes
 object NavigateToKioskModeSetting : NavigationalSetting {
     override val id: String = "navigate_kiosk_management"
     override val titleRes: Int = R.string.settings_item_manage_kiosk
+    override val descriptionRes: Int = R.string.settings_description_manage_kiosk
     override val iconRes: Int = R.drawable.ic_apps_blocked // Placeholder icon
     override val category: SettingCategory = SettingCategory.ADVANCED_ACTIONS // Or a new category
     override val route: String = Routes.KIOSK_MANAGEMENT

@@ -15,6 +15,8 @@ class PreferencesManager @Inject constructor(internal val prefs: SharedPreferenc
     fun loadStringSet(key: String, defaultValue: Set<String>): Set<String> = prefs.getStringSet(key, defaultValue) ?: defaultValue
     fun saveInt(key: String, value: Int) = prefs.edit().putInt(key, value).apply()
     fun loadInt(key: String, defaultValue: Int): Int = prefs.getInt(key, defaultValue)
+    fun saveLong(key: String, value: Long) = prefs.edit().putLong(key, value).apply()
+    fun loadLong(key: String, defaultValue: Long): Long = prefs.getLong(key, defaultValue)
 
 
     companion object {
@@ -35,6 +37,10 @@ class PreferencesManager @Inject constructor(internal val prefs: SharedPreferenc
         const val KEY_SETTINGS_LOCKED_PERMANENTLY = "settings_locked_permanently"
         const val KEY_ALLOW_MANUAL_UPDATE_WHEN_LOCKED = "allow_manual_update_when_locked"
         const val KEY_SHOW_BOOT_TOAST = "show_boot_toast"
+        const val KEY_SETTINGS_FAVORITES = "settings_favorite_keys"
+        const val KEY_MINI_STORE_REQUIRE_PASSWORD = "mini_store_require_password"
+        const val KEY_MINI_STORE_BLACKLIST = "mini_store_blacklist"
+        const val KEY_MINI_STORE_HIGHEST_REVISION = "mini_store_highest_catalog_revision"
 
         // --- Kiosk Mode Keys ---
         const val KEY_KIOSK_MODE_ENABLED = "kiosk_mode_enabled"

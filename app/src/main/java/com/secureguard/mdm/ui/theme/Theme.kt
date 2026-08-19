@@ -17,20 +17,46 @@ import android.util.Log
 import java.util.Locale
 
 /**
- * ערכת הצבעים הבהירה של האפליקציה, המשתמשת בגוונים האדומים שהוגדרו.
+ * ערכת הצבעים הבהירה של האפליקציה, בגוונים של טורקיז.
+ *
+ * כל תפקידי הצבע מוגדרים במפורש ולא רק חלקם, כי רכיבים כמו Card, Surface ו-Chip
+ * צורכים primaryContainer/tertiaryContainer/surfaceVariant. כאשר תפקידים אלו נשארו
+ * בברירת המחדל של Material 3 הם היו סגלגלים ולא תאמו את המיתוג.
  */
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryRed,
-    secondary = SecondaryRed,
-    tertiary = AccentColor,
+    primary = TurquoisePrimary,
+    onPrimary = TurquoiseOnPrimary,
+    primaryContainer = TurquoisePrimaryContainer,
+    onPrimaryContainer = TurquoiseOnPrimaryContainer,
+    inversePrimary = TurquoiseInversePrimary,
+    secondary = TurquoiseSecondary,
+    onSecondary = TurquoiseOnSecondary,
+    secondaryContainer = TurquoiseSecondaryContainer,
+    onSecondaryContainer = TurquoiseOnSecondaryContainer,
+    tertiary = TurquoiseTertiary,
+    onTertiary = TurquoiseOnTertiary,
+    tertiaryContainer = TurquoiseTertiaryContainer,
+    onTertiaryContainer = TurquoiseOnTertiaryContainer,
     background = BackgroundLight,
-    surface = BackgroundLight,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
     onBackground = TextPrimary,
+    surface = SurfaceLight,
     onSurface = TextPrimary,
-    error = ErrorColor
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = TextSecondary,
+    surfaceTint = TurquoisePrimary,
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceLight,
+    surfaceContainerLowest = SurfaceContainerLowest,
+    surfaceContainerLow = SurfaceContainerLow,
+    surfaceContainer = SurfaceContainer,
+    surfaceContainerHigh = SurfaceContainerHigh,
+    surfaceContainerHighest = SurfaceContainerHighest,
+    outline = OutlineColor,
+    outlineVariant = OutlineVariantColor,
+    error = ErrorColor,
+    onError = OnErrorColor,
+    errorContainer = ErrorContainerColor,
+    onErrorContainer = OnErrorContainerColor
 )
 
 /**

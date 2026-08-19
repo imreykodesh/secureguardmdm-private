@@ -161,23 +161,30 @@ class FirestackEngineAdapter(
             )
             if (decision.blocked) {
                 FileLogger.log(TAG, "Blocked DNS query for uid=$uid (${decision.reason}).")
-                if (normalizedDomain != null) {
-                    onConnectionEvent(
-                        ConnectionEvent(
-                            packageName = packageNames.singleOrNull { it in currentSnapshot.selectedPackages }
-                                ?: UNKNOWN_PACKAGE,
-                            uid = ownerUid,
-                            domain = normalizedDomain,
-                            destinationIp = "",
-                            destinationPort = DNS_PORT,
-                            protocol = FirewallProtocol.ANY,
-                            decision = ConnectionDecision.BLOCKED,
-                            decisionReason = decision.reason,
-                            metadataSource = MetadataSource.DNS,
-                            networkType = currentNetworkType(),
-                        ),
-                    )
+            }
+            if (normalizedDomain != null) {
+                val packageName = packageNames.singleOrNull { it in currentSnapshot.selectedPackages }
+                    ?: UNKNOWN_PACKAGE
+                val policyMode = currentSnapshot.policies[packageName]?.policyMode
+                val connectionDecision = when {
+                    decision.blocked -> ConnectionDecision.BLOCKED
+                    policyMode == FirewallPolicyMode.MONITOR_ONLY -> ConnectionDecision.MONITORED
+                    else -> ConnectionDecision.ALLOWED
                 }
+                onConnectionEvent(
+                    ConnectionEvent(
+                        packageName = packageName,
+                        uid = ownerUid,
+                        domain = normalizedDomain,
+                        destinationIp = "",
+                        destinationPort = DNS_PORT,
+                        protocol = FirewallProtocol.ANY,
+                        decision = connectionDecision,
+                        decisionReason = decision.reason,
+                        metadataSource = MetadataSource.DNS,
+                        networkType = currentNetworkType(),
+                    ),
+                )
             }
             return DNSOpts().apply {
                 this.uid = uid.toString()

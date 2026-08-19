@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -37,7 +38,8 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToMiniStore: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -112,6 +114,14 @@ fun DashboardScreen(
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            FilledTonalButton(
+                onClick = onNavigateToMiniStore,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Icon(Icons.Default.Store, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.mini_store_dashboard_button))
+            }
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -163,7 +173,7 @@ fun DashboardScreen(
 
     if (showAppInfoDialog) {
         AppInfoDialog(
-            appVersion = stringResource(id = R.string.app_version),
+            appVersion = com.secureguard.mdm.BuildConfig.VERSION_NAME,
             buildStatus = stringResource(id = R.string.app_build_status),
             isContactEmailVisible = uiState.isContactEmailVisible,
             onCheckForUpdateClick = { viewModel.onEvent(DashboardEvent.OnManualUpdateCheck) },

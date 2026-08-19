@@ -111,6 +111,14 @@ class SettingsRepositoryImpl @Inject constructor(
         preferencesManager.saveBoolean(PreferencesManager.KEY_SHOW_BOOT_TOAST, isEnabled)
     }
 
+    override suspend fun getFavoriteSettingsKeys(): Set<String> = withContext(Dispatchers.IO) {
+        preferencesManager.loadStringSet(PreferencesManager.KEY_SETTINGS_FAVORITES, emptySet()).toSet()
+    }
+
+    override suspend fun setFavoriteSettingsKeys(keys: Set<String>) = withContext(Dispatchers.IO) {
+        preferencesManager.saveStringSet(PreferencesManager.KEY_SETTINGS_FAVORITES, keys.toSet())
+    }
+
 
     override suspend fun getCustomFrpIds(): Set<String> = withContext(Dispatchers.IO) {
         preferencesManager.loadStringSet(PreferencesManager.KEY_CUSTOM_FRP_IDS, emptySet())
@@ -192,7 +200,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     // --- הוספה: מימוש הפונקציות לניהול הצבע הראשי של הקיוסק ---
     override suspend fun getKioskPrimaryColor(): Int = withContext(Dispatchers.IO) {
-        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR, 0xFF6200EE.toInt()) // ברירת מחדל: כחול של Material
+        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR, 0xFF00838F.toInt()) // ברירת מחדל: טורקיז המיתוג
     }
 
     override suspend fun setKioskPrimaryColor(color: Int) = withContext(Dispatchers.IO) {
@@ -276,7 +284,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override fun getKioskPrimaryColorFlow(): Flow<Int> = preferenceFlow(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR) {
-        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR, 0xFF6200EE.toInt())
+        preferencesManager.loadInt(PreferencesManager.KEY_KIOSK_PRIMARY_COLOR, 0xFF00838F.toInt())
     }
 
     private fun <T> preferenceFlow(key: String, getValue: () -> T): Flow<T> = callbackFlow {

@@ -15,13 +15,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.secureguard.mdm.appblocker.ui.AppSelectionScreen
-import com.secureguard.mdm.appblocker.ui.BlockedAppsScreen
 import com.secureguard.mdm.data.repository.SettingsRepository
 import com.secureguard.mdm.firewall.ui.FirewallScreen
 import com.secureguard.mdm.kiosk.ui.KioskAppSelectionScreen
 import com.secureguard.mdm.kiosk.ui.KioskManagementScreen
+import com.secureguard.mdm.ministore.ui.MiniStoreScreen
+import com.secureguard.mdm.ministore.ui.PlayLoginScreen
 import com.secureguard.mdm.ui.screens.changepassword.ChangePasswordScreen
 import com.secureguard.mdm.ui.screens.dashboard.DashboardScreen
+import com.secureguard.mdm.ui.screens.devicehealth.DeviceHealthScreen
 import com.secureguard.mdm.ui.screens.frpsettings.FrpSettingsScreen
 import com.secureguard.mdm.ui.screens.provisioning.ProvisioningScreen
 import com.secureguard.mdm.ui.screens.settings.SettingsScreen
@@ -34,13 +36,15 @@ object Routes {
     const val SETUP = "setup"
     const val DASHBOARD = "dashboard"
     const val SETTINGS = "settings"
+    const val DEVICE_HEALTH = "device_health"
     const val CHANGE_PASSWORD = "change_password"
     const val APP_SELECTION = "app_selection"
-    const val BLOCKED_APPS_DISPLAY = "blocked_apps_display"
     const val FRP_SETTINGS = "frp_settings"
     const val KIOSK_MANAGEMENT = "kiosk_management"
     const val KIOSK_APP_SELECTION = "kiosk_app_selection"
     const val FIREWALL_OVERVIEW = "firewall_overview"
+    const val MINI_STORE = "mini_store"
+    const val MINI_STORE_PLAY_LOGIN = "mini_store_play_login"
 }
 
 @Composable
@@ -63,11 +67,18 @@ fun AppNavigation(
                 val isAdmin = dpm.isDeviceOwnerApp(context.packageName)
                 val isSetupComplete = settingsRepository.isSetupComplete()
 
-                when {
+                val destination = when {
                     !isAdmin -> Routes.PROVISIONING
                     !isSetupComplete -> Routes.SETUP
                     else -> Routes.DASHBOARD
                 }
+                // Diagnostic: a recreated activity briefly showing the setup
+                // screen would be visible here.
+                android.util.Log.i(
+                    "AbloqNav",
+                    "start destination=$destination admin=$isAdmin setupComplete=$isSetupComplete",
+                )
+                destination
             }
         }
     }
@@ -85,7 +96,10 @@ fun AppNavigation(
                 })
             }
             composable(Routes.DASHBOARD) {
-                DashboardScreen(onNavigateToSettings = { navController.navigate(Routes.SETTINGS) })
+                DashboardScreen(
+                    onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                    onNavigateToMiniStore = { navController.navigate(Routes.MINI_STORE) },
+                )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
@@ -93,17 +107,38 @@ fun AppNavigation(
                     onNavigateTo = { route -> navController.navigate(route) }
                 )
             }
+            composable(Routes.DEVICE_HEALTH) {
+                DeviceHealthScreen(onNavigateBack = { navController.popBackStack() })
+            }
             composable(Routes.CHANGE_PASSWORD) {
                 ChangePasswordScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(Routes.APP_SELECTION) {
-                AppSelectionScreen(onNavigateBack = { navController.popBackStack() })
-            }
-            composable(Routes.BLOCKED_APPS_DISPLAY) {
-                BlockedAppsScreen(onNavigateBack = { navController.popBackStack() })
+                AppSelectionScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUpdates = {
+                        navController.navigate(Routes.MINI_STORE) {
+                            popUpTo(Routes.APP_SELECTION) { inclusive = true }
+                        }
+                    },
+                )
             }
             composable(Routes.FIREWALL_OVERVIEW) {
                 FirewallScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Routes.MINI_STORE_PLAY_LOGIN) {
+                PlayLoginScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Routes.MINI_STORE) {
+                MiniStoreScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayLogin = { navController.navigate(Routes.MINI_STORE_PLAY_LOGIN) },
+                    onNavigateToProtection = {
+                        navController.navigate(Routes.APP_SELECTION) {
+                            popUpTo(Routes.MINI_STORE) { inclusive = true }
+                        }
+                    },
+                )
             }
             composable(Routes.FRP_SETTINGS) {
                 FrpSettingsScreen(onNavigateBack = { navController.popBackStack() })
