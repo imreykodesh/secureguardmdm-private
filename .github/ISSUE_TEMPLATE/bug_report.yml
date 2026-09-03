@@ -1,0 +1,39 @@
+name: דיווח על תקלה
+description: משהו אינו פועל כמצופה באפליקציה
+title: "[תקלה] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        תודה על הדיווח. אין לצרף סיסמאות, קודים, פרטי תשלום, כתובות דוא"ל, מספר סידורי או מידע אישי.
+  - type: textarea
+    id: problem
+    attributes:
+      label: מה קרה?
+      description: תיאור קצר וברור של התקלה.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: מה היה אמור לקרות?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: כיצד ניתן לשחזר?
+      description: הפעולות שבוצעו לפני הופעת התקלה.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: דגם המכשיר וגרסת Android
+      description: ללא מספר סידורי או מזהה מכשיר.
+  - type: input
+    id: app-version
+    attributes:
+      label: גרסת סוויצ'

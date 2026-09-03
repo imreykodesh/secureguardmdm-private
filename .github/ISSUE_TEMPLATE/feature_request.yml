@@ -1,0 +1,26 @@
+name: הצעה לשיפור
+description: רעיון לתכונה חדשה או לשיפור התנהגות קיימת
+title: "[הצעה] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        תודה על ההצעה. אין לצרף מידע אישי, סיסמאות, קודים או פרטים רגישים.
+  - type: textarea
+    id: need
+    attributes:
+      label: איזה צורך ההצעה פותרת?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: מה היית רוצה שיקרה?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: האם יש פתרון חלופי כיום?
